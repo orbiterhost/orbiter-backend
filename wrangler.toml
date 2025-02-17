@@ -1,0 +1,53 @@
+name = "orbiter-backend"
+main = "src/index.ts"
+compatibility_date = "2024-12-23"
+
+compatibility_flags = [ "nodejs_compat" ]
+
+[vars]
+RECAPTCHA_SITE_KEY = "6LcQHqQqAAAAADHN8zgMRAFL8c9DH1sHJ0yu-R-e"
+ZONE_ID = "a033fbaa48dd87430c760c6570fe038f"
+HOST_ZONE_ID = "7b4e5ee4ec2c2a9738faa9c29c6feba2"
+SUPABASE_URL = "https://myyfwiyflnerjrdaoyxs.supabase.co"
+PINATA_GATEWAY = "cdn.orbiter.host"
+CHANNEL_ID = "C086DDCVA5R"
+SLACK_SITES_CHANNEL_ID = "C087R04NQP2"
+SLACK_SUBSCRIPTIONS_CHANNEL_ID = "C0874KMU6AH"
+ORBITER_WALLET_ADDRESS = "0xfa0155caa52113921cf31ccd9b908533f1f1d526"
+CONTRACT_ADDRESS = "0x486Edc2E94926fd50398e2129089648b8B9E3D3A"
+NGINX_SERVER_URL = "https://lb.orbiter.host"
+# SITE_DOMAIN = "http://localhost:5173/billing"
+SITE_DOMAIN = "https://app.orbiter.host/billing"
+RESOLVER_ADDRESS = "0x4Fa456bA70dd3a36EDCFf3A077EBdC52e4DB46b2"
+LAUNCH_MONTHLY_PRICE_ID = "price_1Qfs6PITCuQY0tuKiHEePgmP"
+LAUNCH_YEARLY_PRICE_ID = "price_1Qr35mITCuQY0tuKHKHF1z1L"
+ORBIT_MONTHLY_PRICE_ID = "price_1Qfs5cITCuQY0tuK2Mx2OkPR"
+ORBIT_YEARLY_PRICE_ID = "price_1Qr3LjITCuQY0tuKi4etDDN5"
+
+[[kv_namespaces]]
+binding = "ORBITER_SITES"
+id = "87778ebb68c7482f81e47dca0dc8f5b5"
+
+[[kv_namespaces]]
+binding = "SITE_PLANS"
+id = "37743b06fcc7439e93e54d0866cf56b0"
+
+[[kv_namespaces]]
+binding = "SITE_TO_ORG"
+id = "cd51f5e3da4946d99530e1b825d94b2e"
+
+# [[r2_buckets]]
+# binding = "MY_BUCKET"
+# bucket_name = "my-bucket"
+
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "my-database"
+# database_id = ""
+
+# [ai]
+# binding = "AI"
+
+[observability]
+enabled = true
+head_sampling_rate = 0.50 # 1% sampling rate
