@@ -56,6 +56,8 @@ app.get("/:identifier/versions", async (c) => {
 
     const offset = c.req.query("offset");
 
+    const all = c.req.query("all")
+
     // Helper function to check if string is UUID
     const isUUID = (str: string) => {
       const uuidRegex =
@@ -95,7 +97,7 @@ app.get("/:identifier/versions", async (c) => {
     const versions = await getSiteVersions(
       c,
       lookUpType,
-      parseInt(offset || "0", 10)
+      all === "true" ? undefined : parseInt(offset || "0", 10)
     );
 
     //  We will return a nextOffset to help the FE and CLI manage pagination better
@@ -103,7 +105,7 @@ app.get("/:identifier/versions", async (c) => {
     return c.json(
       {
         data: versions,
-        nextOffset:
+        nextOffset: all === "true" ? null :
           versions.length === 10 ? parseInt(offset || "0", 10) + 10 : null,
       },
       200
@@ -121,7 +123,6 @@ app.get("/:identifier/versions", async (c) => {
     );
   }
 });
-
 app.get("/", async (c) => {
   try {
     const domain = c.req.query("domain");
