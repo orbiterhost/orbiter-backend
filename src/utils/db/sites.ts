@@ -80,7 +80,7 @@ export const getSiteById = async (
 export const getSiteVersions = async (
   c: Context,
   lookup: SiteVersionLookupType,
-  offset: number
+  offset?: number
 ): Promise<SiteVersions[]> => {
   try {
     const supabase = createClient(
@@ -88,12 +88,17 @@ export const getSiteVersions = async (
       c.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    let { data: versions, error } = await supabase
+    let query = supabase
       .from("site_versions")
       .select("*")
       .eq(lookup.field, lookup.value)
-      .range(offset, offset + VERSIONS_PER_PAGE - 1)
       .order("created_at", { ascending: false });
+
+    if (offset !== undefined) {
+      query = query.range(offset, offset + VERSIONS_PER_PAGE - 1);
+    }
+
+    let { data: versions, error } = await query;
 
     if (error) {
       console.error("Supabase error: ", error);
@@ -263,18 +268,18 @@ export const updateDomainVerificationForSite = async (
     const upsertData =
       customDomain === ""
         ? {
-            id: siteId,
-            organization_id: orgId,
-            domain_ownership_verified: verified,
-            ssl_issued: ssl,
-            custom_domain: null,
-          }
+          id: siteId,
+          organization_id: orgId,
+          domain_ownership_verified: verified,
+          ssl_issued: ssl,
+          custom_domain: null,
+        }
         : {
-            id: siteId,
-            organization_id: orgId,
-            domain_ownership_verified: verified,
-            ssl_issued: ssl,
-          };
+          id: siteId,
+          organization_id: orgId,
+          domain_ownership_verified: verified,
+          ssl_issued: ssl,
+        };
 
     const { data, error } = await supabase
       .from("sites")
