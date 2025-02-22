@@ -12,6 +12,7 @@ import { getActiveSubscriptions } from "../utils/stripe";
 import { getWalletBalance } from "../utils/viem";
 import { deleteSubdomain, purgeCache } from "../utils/subdomains";
 import { blockUser } from "../utils/db/users";
+import { slowEquals } from "../utils/security";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -20,7 +21,7 @@ app.use("/*", cors());
 app.post("/kv", async (c) => {
   try {
     const token = c.req.header("X-Orbiter-Admin");
-    if (!token || token !== c.env.NGINX_SERVER_TOKEN) {
+    if (!token || !slowEquals(token, c.env.NGINX_SERVER_TOKEN)) {
       return c.json({ message: "Unauthorized" }, 401);
     }
 
@@ -147,7 +148,7 @@ app.post("/block_site", async (c) => {
       return c.json({ message: "Unauthorized" }, 401);
     }
 
-    if(!domain.includes("https") || !domain.include("orbiter.website")) {
+    if (!domain.includes("https") || !domain.include("orbiter.website")) {
       return c.json({ message: "Please use full domain like: https://somedomain.orbiter.website" }, 400)
     }
 
