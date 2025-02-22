@@ -3,6 +3,7 @@ import { Bindings } from "../utils/types";
 import { Context } from "hono";
 import { getKeyByHash } from "../utils/db/keys";
 import { hashApiKey } from "../utils/apiKeys";
+import { slowEquals } from "../utils/security";
 
 const ALLOWED_USERS = [
   "491404e0-0c90-43fe-a86e-4e11014a7e52",
@@ -14,19 +15,19 @@ export const getUserSession = async (c: Context) => {
   try {
     //  get header
     const apiKey = c.req.header("X-Orbiter-API-Key");
-    
-    if(apiKey) {      
+
+    if (apiKey) {
       const hashedKey = await hashApiKey(apiKey);
       const keyData = await getKeyByHash(c, hashedKey);
-      if(!keyData.id) {
+      if (!keyData.id) {
         return {
           isAuthenticated: false
         }
-      } 
+      }
 
       return {
-        isAuthenticated: true, 
-        organizationData: {id: keyData.organization_id, orgOwner: keyData.organizations?.owner_id, scope: keyData.scope }
+        isAuthenticated: true,
+        organizationData: { id: keyData.organization_id, orgOwner: keyData.organizations?.owner_id, scope: keyData.scope }
       }
     }
 
@@ -74,7 +75,7 @@ export const adminAccess = async (c: Context) => {
       return {
         isAuthenticated: false,
       };
-    } else if (!token && adminToken !== c.env.NGINX_SERVER_TOKEN) {
+    } else if (!token && !slowEquals(adminToken as string, c.env.NGINX_SERVER_TOKEN)) {
       return {
         isAuthenticated: false,
       };
@@ -91,10 +92,10 @@ export const adminAccess = async (c: Context) => {
         data: { user },
       } = await supabase.auth.getUser(token);
 
-      if(user && user.user_metadata.blocked === "true") {
+      if (user && user.user_metadata.blocked === "true") {
         console.log("User is blocked: ", user);
         return {
-          isAuthenticated: false        
+          isAuthenticated: false
         }
       }
 
@@ -111,7 +112,7 @@ export const adminAccess = async (c: Context) => {
     } else {
       return {
         isAuthenticated: true,
-        user: {id: "ADMIN"},
+        user: { id: "ADMIN" },
       };
     }
   } catch (error) {
@@ -126,7 +127,7 @@ export const verifySupabaseWebhookSecret = async (c: Context) => {
     console.log("Supabase secret!")
     console.log(secret);
     //  @TODO - figure out why Supabase is not sending the custom header I set
-    
+
     // if(secret !== c.env.SUPABASE_WEBHOOK_SECRET) {
     //   return false;
     // }
