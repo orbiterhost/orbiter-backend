@@ -8,7 +8,7 @@ import {
   getSiteCount,
   getUserCount,
 } from "../utils/db/admin";
-import { getActiveSubscriptions } from "../utils/stripe";
+import { calculateMRR, getActiveSubscriptions } from "../utils/stripe";
 import { getWalletBalance } from "../utils/viem";
 import { deleteSubdomain, purgeCache } from "../utils/subdomains";
 import { blockUser } from "../utils/db/users";
@@ -158,6 +158,21 @@ app.post("/block_site", async (c) => {
     await purgeCache(c, domain);
 
     return c.json({ message: "Success!" }, 200);
+  } catch (error) {
+    console.log(error);
+    return c.json({ message: "Server error" }, 500);
+  }
+})
+
+app.get("/mrr", async (c) => {
+  try {
+    const { isAuthenticated, user } = await adminAccess(c);
+    if (!isAuthenticated || !user?.id) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    const mrr = await calculateMRR(c);
+    return c.json({ data: mrr }, 200);
   } catch (error) {
     console.log(error);
     return c.json({ message: "Server error" }, 500);
