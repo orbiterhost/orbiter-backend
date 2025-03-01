@@ -221,6 +221,7 @@ app.post("/", async (c) => {
     );
     //	Next we need to map the user's domain to the new CID using Cloudflare KV
     await c.env.ORBITER_SITES.put(subdomain.toLowerCase(), cid);
+    await c.env.SITE_CONTRACT.put(subdomain.toLowerCase(), contractRes.args.cloneAddress)
     await c.env.SITE_TO_ORG.put(subdomain.toLowerCase(), orgId);
     //	@TODO If the user has a custom domain, we must map both the custom domain and default domain to the CID
     console.log("Writing...");

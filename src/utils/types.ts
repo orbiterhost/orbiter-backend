@@ -12,6 +12,7 @@ export type Bindings = {
   PINATA_GATEWAY: string;
   ORBITER_SITES: KVNamespace;
   SITE_PLANS: KVNamespace;
+  SITE_CONTRACT: KVNamespace;
   SITE_TO_ORG: KVNamespace;
   CONTRACT_ADDRESS: string;
   ORBITER_PRIVATE_KEY: string;
