@@ -13,6 +13,7 @@ import { getWalletBalance } from "../utils/viem";
 import { deleteSubdomain, purgeCache } from "../utils/subdomains";
 import { blockUser } from "../utils/db/users";
 import { slowEquals } from "../utils/security";
+import { getAllSites } from "../utils/db/sites";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -190,6 +191,27 @@ app.post("/block_user", async (c) => {
     await blockUser(c, email);
 
     return c.json({ message: "Success!" }, 200);
+  } catch (error) {
+    console.log(error);
+    return c.json({ message: "Server error" }, 500);
+  }
+})
+
+app.post("/backfill-site-contracts", async (c) => {
+  try {    
+    const { isAuthenticated, user } = await adminAccess(c);
+    if (!isAuthenticated || !user?.id) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    const sites = await getAllSites(c);
+    if(sites) {
+      for(const site of sites) {
+        await c.env.SITE_CONTRACT.put(site.domain.toLowerCase(), site.site_contract);
+      }
+    }
+
+    return c.text("Done!");
   } catch (error) {
     console.log(error);
     return c.json({ message: "Server error" }, 500);

@@ -41,6 +41,33 @@ export const getSiteByDomain = async (
   }
 };
 
+export const getAllSites = async (
+  c: Context
+): Promise<Site[]> => {
+  try {
+    const supabase = createClient(
+      c.env.SUPABASE_URL,
+      c.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    let { data: sites, error } = await supabase
+      .from("sites")
+      .select("*")
+
+    if (error) {
+      console.log("Supabase error: ", error);
+      throw error;
+    }
+
+    return (
+      sites || []
+    );
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+};
+
 export const getSiteById = async (
   c: Context,
   siteId: string
