@@ -207,7 +207,8 @@ app.post("/backfill-site-contracts", async (c) => {
     const sites = await getAllSites(c);
     if(sites) {
       for(const site of sites) {
-        await c.env.SITE_CONTRACT.put(site.domain.toLowerCase(), site.site_contract);
+        const siteKey = site.domain.split('.')[0];
+        await c.env.SITE_CONTRACT.put(siteKey.toLowerCase(), site.site_contract);
       }
     }
 
