@@ -133,7 +133,7 @@ app.get("/resolver/:ens", async (c) => {
 
     const publicClient = createPublicClient({
       chain: mainnet,
-      transport: http(),
+      transport: http(c.env.ALCHEMY_URL),
     })
     const resolverAddress = await publicClient.getEnsResolver({
       name: normalize(ens),

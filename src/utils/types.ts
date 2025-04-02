@@ -39,6 +39,7 @@ export type Bindings = {
   LAUNCH_YEARLY_PRICE_ID: string;
   ORBIT_MONTHLY_PRICE_ID: string;
   ORBIT_YEARLY_PRICE_ID: string;
+  ALCHEMY_URL: string;
 };
 
 export type Organization = {

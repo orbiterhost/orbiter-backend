@@ -6,6 +6,7 @@
   },
   "dependencies": {
     "@ensdomains/content-hash": "^3.0.0",
+    "@ensdomains/ensjs": "^4.0.2",
     "@supabase/supabase-js": "^2.47.10",
     "crypto-js": "^4.2.0",
     "hono": "^4.6.14",
