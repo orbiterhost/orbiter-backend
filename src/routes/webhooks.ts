@@ -177,7 +177,7 @@ app.post("/stripe", async (c) => {
             await postSubscriptionChanges(c, message);
           }
           // Update your KV store with new plan info
-          await c.env.SITE_PLANS.put(orgId, PLAN_MAPPING[newPriceId]);
+          await c.env.SITE_PLANS.put(orgInfo.id, PLAN_MAPPING[newPriceId]);
         }
         break;
 
