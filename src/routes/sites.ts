@@ -12,6 +12,7 @@ import {
   checkSubdomainDNSRecord,
   createSubdomain,
   deleteSubdomain,
+  purgeCache,
   validateSubdomain,
 } from "../utils/subdomains";
 import { createContract, writeCID } from "../utils/viem";
@@ -267,6 +268,8 @@ app.put("/:siteId", async (c) => {
     const { site_contract, domain, organization_id } = siteInfo;
 
     console.log(siteInfo);
+
+    await purgeCache(c, siteInfo.domain);
 
     await writeCID(c, cid, site_contract as `0x${string}`);
 

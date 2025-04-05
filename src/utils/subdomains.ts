@@ -153,7 +153,7 @@ export async function purgeCache(c: Context, domain: string) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        files: [
+        hosts: [
           `https://${domain}/*`
         ]
       })
@@ -163,7 +163,7 @@ export async function purgeCache(c: Context, domain: string) {
     return data;
   } catch (error) {
     console.error(error);
-    throw error;
+    // throw error;
   }
 }
 
