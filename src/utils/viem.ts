@@ -29,7 +29,7 @@ export async function createContract(
 
   const walletClient = createWalletClient({
     chain: base,
-    transport: http(),
+    transport: http(c.env.BASE_ALCHEMY_URL),
     account: account,
   });
   try {
@@ -95,22 +95,22 @@ export async function writeCID(
 
 export const getWalletBalance = async (c: Context) => {
   try {
-    const balance = await publicClient.getBalance({ 
+    const balance = await publicClient.getBalance({
       address: c.env.ORBITER_WALLET_ADDRESS,
     });
 
-    const balanceAsEther = formatEther(balance) 
+    const balanceAsEther = formatEther(balance)
     const response = await fetch('https://api.kraken.com/0/public/Ticker?pair=ETHUSD');
     const data: any = await response.json();
-    
+
     let ethUsd = "0"
-    
-    if(data && data.result) {
+
+    if (data && data.result) {
       ethUsd = data.result.XETHZUSD.o
     }
-    
+
     return {
-      eth: balanceAsEther, 
+      eth: balanceAsEther,
       usd: (parseFloat(ethUsd) * parseFloat(balanceAsEther)).toFixed(2)
     };
   } catch (error) {
