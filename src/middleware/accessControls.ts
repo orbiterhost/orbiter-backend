@@ -28,7 +28,7 @@ type PlanType = "free" | "launch" | "orbit";
 
 export const SITE_LIMITS: Record<PlanType, number> = {
   free: 2,
-  launch: 5,
+  launch: 100000000000,
   orbit: 100000000000,
 };
 
@@ -100,7 +100,7 @@ export const canCreateSite = async (
           : "free";
     }
 
-    if (plan !== "orbit") {
+    if (plan !== "launch" && plan !== "orbit") {
       //  Check if they have reached their site limit
       const siteCount: number | null = await getSiteCountForOrganization(
         c,
@@ -111,8 +111,6 @@ export const canCreateSite = async (
         return false;
       }
     }
-
-    //  @TODO - fetch total storage from Pinata for customer
 
     return true;
   } catch (error) {
