@@ -19,6 +19,9 @@ app.post("/account_association/:siteId", async (c) => {
     }
 
     const siteId = c.req.param("siteId");
+    if (!siteId) {
+      return c.json({ message: "Missing Site ID" }, 400);
+    }
 
     // Verify ownership of the site
     let siteInfo: any;
