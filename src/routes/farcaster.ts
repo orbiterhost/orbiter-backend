@@ -49,7 +49,7 @@ app.post("/account_association/:siteId", async (c) => {
       return c.json({ message: "Server configuration error" }, 500);
     }
 
-    const signer = new ethers.Wallet(c.env.FARCASTER_MNEMONIC as string);
+    const signer = ethers.Wallet.fromPhrase(c.env.FARCASTER_MNEMONIC as string);
     const custodyAddress = await signer.getAddress();
 
     // Use the FarcasterJFS utility to create the signed association
