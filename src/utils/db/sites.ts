@@ -187,7 +187,8 @@ export const createOrUpdateSiteMapping = async (
   orgId: string,
   domain: string,
   cid: string,
-  siteContract?: string
+  siteContract?: string, 
+  source?: string
 ) => {
   try {
     console.log("Updating site mapping!");
@@ -207,6 +208,7 @@ export const createOrUpdateSiteMapping = async (
             domain: `${domain}.orbiter.website`,
             site_contract: siteContract,
             deployed_by: userId,
+            source
           },
           { onConflict: "domain" }
         )

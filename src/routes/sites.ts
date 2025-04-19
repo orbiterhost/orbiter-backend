@@ -158,6 +158,7 @@ app.get("/", async (c) => {
 app.post("/", async (c) => {
   try {
     const body = await c.req.json();
+    const source = c.req.header("Source") || "";
     //	The CID comes from the frontend since the FE will be handling the site upload
     const { cid, subdomain } = body;
     const { isAuthenticated, user, organizationData } = await getUserSession(c);
@@ -218,7 +219,8 @@ app.post("/", async (c) => {
       orgId,
       subdomain.toLowerCase(),
       cid,
-      contractRes.args.cloneAddress
+      contractRes.args.cloneAddress, 
+      source
     );
     //	Next we need to map the user's domain to the new CID using Cloudflare KV
     await c.env.ORBITER_SITES.put(subdomain.toLowerCase(), cid);
@@ -239,6 +241,7 @@ app.post("/", async (c) => {
 });
 
 app.put("/:siteId", async (c) => {
+  const source = c.req.header("Source") || "";
   try {
     const siteId = c.req.param("siteId");
     //	The CID comes from the frontend since the FE will be handling the site upload
@@ -288,7 +291,8 @@ app.put("/:siteId", async (c) => {
       organization_id,
       domainPrefix.toLowerCase(),
       cid,
-      site_contract
+      site_contract, 
+      source
     );
 
     const userDetails = await getUserById(c, userForDb);
