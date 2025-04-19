@@ -12,6 +12,7 @@ import analytics from "./routes/analytics";
 import members from "./routes/members";
 import resolve from "./routes/resolve"
 import ens from "./routes/ens";
+import farcaster from "./routes/farcaster";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -28,6 +29,7 @@ app.route("/members", members);
 app.route("/lookup", resolve);
 app.route("/ens", ens);
 app.route("/analytics", analytics);
+app.route("/farcaster", farcaster);
 
 app.get("/health", async (c: Context<{ Bindings: Bindings }>) => {
   return c.json({ status: "orbiting" }, 200);

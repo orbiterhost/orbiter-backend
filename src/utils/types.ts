@@ -40,6 +40,8 @@ export type Bindings = {
   ORBIT_MONTHLY_PRICE_ID: string;
   ORBIT_YEARLY_PRICE_ID: string;
   ALCHEMY_URL: string;
+  FARCASTER_MNEMONIC: string;
+  FARCASTER_FID: string;
 };
 
 export type Organization = {
