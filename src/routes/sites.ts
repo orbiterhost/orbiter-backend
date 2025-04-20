@@ -199,11 +199,13 @@ app.post("/", async (c) => {
       return c.json({ message: "Subdomain already exists" }, 400);
     }
 
-    const contractRes = await createContract(c);
-
-    if (!contractRes) {
-      throw Error("Problem creating contract");
-    }
+    await c.env.CONTRACT_QUEUE.send({
+      type: 'create_contract',
+      cid: cid,
+      domain: subdomain.toLowerCase(),
+      userId: user ? user.id : organizationData?.orgOwner,
+      orgId: orgId
+    });
 
     const html: any = await getSiteData(c, cid);
 
@@ -217,16 +219,12 @@ app.post("/", async (c) => {
       userIdToUser!,
       orgId,
       subdomain.toLowerCase(),
-      cid,
-      contractRes.args.cloneAddress
+      cid
     );
     //	Next we need to map the user's domain to the new CID using Cloudflare KV
     await c.env.ORBITER_SITES.put(subdomain.toLowerCase(), cid);
-    await c.env.SITE_CONTRACT.put(subdomain.toLowerCase(), contractRes.args.cloneAddress)
     await c.env.SITE_TO_ORG.put(subdomain.toLowerCase(), orgId);
     //	@TODO If the user has a custom domain, we must map both the custom domain and default domain to the CID
-    console.log("Writing...");
-    await writeCID(c, cid, contractRes.args.cloneAddress as `0x${string}`);
     const userDetails = await getUserById(c, userIdToUser!);
 
     await postNewSiteToSlack(c, subdomain, userDetails, cid);
@@ -271,7 +269,16 @@ app.put("/:siteId", async (c) => {
 
     await purgeCache(c, siteInfo.domain);
 
-    await writeCID(c, cid, site_contract as `0x${string}`);
+    if (site_contract) {
+      await c.env.CONTRACT_QUEUE.send({
+        type: 'update_contract',
+        cid: cid,
+        contractAddress: site_contract as `0x${string}`,
+        siteId: siteId,
+        userId: user ? user.id : organizationData?.orgOwner,
+        orgId: organization_id
+      });
+    }
 
     //	Next we need to map the user's domain to the new CID using Cloudflare KV
     const domainPrefix = domain.split(".orbiter.website")[0];

@@ -2,7 +2,7 @@ name = "orbiter-backend"
 main = "src/index.ts"
 compatibility_date = "2024-12-23"
 
-compatibility_flags = [ "nodejs_compat" ]
+compatibility_flags = ["nodejs_compat"]
 
 [vars]
 RECAPTCHA_SITE_KEY = "6LcQHqQqAAAAADHN8zgMRAFL8c9DH1sHJ0yu-R-e"
@@ -39,6 +39,13 @@ id = "cd51f5e3da4946d99530e1b825d94b2e"
 [[kv_namespaces]]
 binding = "SITE_CONTRACT"
 id = "0a2dc5df8dda441aa9a7b47a09411001"
+
+[[queues.producers]]
+binding = "CONTRACT_QUEUE"
+queue = "contract-queue"
+
+[[queues.consumers]]
+queue = "contract-queue"
 
 # [[r2_buckets]]
 # binding = "MY_BUCKET"
