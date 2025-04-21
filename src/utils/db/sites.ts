@@ -187,8 +187,8 @@ export const createOrUpdateSiteMapping = async (
   orgId: string,
   domain: string,
   cid: string,
-  siteContract?: string, 
-  source?: string
+  source?: string,
+  siteContract?: string
 ) => {
   try {
     console.log("Updating site mapping!");
@@ -199,19 +199,22 @@ export const createOrUpdateSiteMapping = async (
         c.env.SUPABASE_SERVICE_ROLE_KEY
       );
 
+      const updateData: any = {
+        cid,
+        organization_id: orgId,
+        domain: `${domain}.orbiter.website`,
+        deployed_by: userId,
+        source
+      };
+
+      // Only include site_contract if it's provided
+      if (siteContract) {
+        updateData.site_contract = siteContract;
+      }
+
       const { data, error } = await supabase
         .from("sites")
-        .upsert(
-          {
-            cid,
-            organization_id: orgId,
-            domain: `${domain}.orbiter.website`,
-            site_contract: siteContract,
-            deployed_by: userId,
-            source
-          },
-          { onConflict: "domain" }
-        )
+        .upsert(updateData, { onConflict: "domain" })
         .select();
 
       if (error) {

@@ -42,6 +42,7 @@ export type Bindings = {
   ALCHEMY_URL: string;
   FARCASTER_MNEMONIC: string;
   FARCASTER_FID: string;
+  CONTRACT_QUEUE: Queue;
 };
 
 export type Organization = {
