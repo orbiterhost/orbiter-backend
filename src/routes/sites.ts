@@ -220,7 +220,7 @@ app.post("/", async (c) => {
       userIdToUser!,
       orgId,
       subdomain.toLowerCase(),
-      cid
+      cid,
       source
     );
     //	Next we need to map the user's domain to the new CID using Cloudflare KV
@@ -298,8 +298,8 @@ app.put("/:siteId", async (c) => {
       organization_id,
       domainPrefix.toLowerCase(),
       cid,
-      site_contract,
-      source
+      source,
+      site_contract
     );
 
     const userDetails = await getUserById(c, userForDb);

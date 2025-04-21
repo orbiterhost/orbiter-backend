@@ -44,8 +44,8 @@ id = "0a2dc5df8dda441aa9a7b47a09411001"
 binding = "CONTRACT_QUEUE"
 queue = "contract-queue"
 
-[[queues.consumers]]
-queue = "contract-queue"
+# [[queues.consumers]]
+# queue = "contract-queue"
 
 # [[r2_buckets]]
 # binding = "MY_BUCKET"

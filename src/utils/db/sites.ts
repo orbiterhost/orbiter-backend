@@ -187,8 +187,8 @@ export const createOrUpdateSiteMapping = async (
   orgId: string,
   domain: string,
   cid: string,
-  siteContract?: string,
-  source?: string
+  source?: string,
+  siteContract?: string
 ) => {
   try {
     console.log("Updating site mapping!");
