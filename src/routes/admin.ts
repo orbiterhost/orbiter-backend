@@ -5,7 +5,9 @@ import { adminAccess } from "../middleware/auth";
 import {
   getDailyUsers,
   getDailyVersions,
+  getOnboardingDataByDateRange,
   getSiteCount,
+  getSiteDeploymentSources,
   getUserCount,
 } from "../utils/db/admin";
 import { calculateMRR, getActiveSubscriptions } from "../utils/stripe";
@@ -133,6 +135,76 @@ app.get("/users_by_day", async (c) => {
     }
 
     const data = await getDailyUsers(c);
+
+    return c.json({ data: data }, 200);
+  } catch (error) {
+    console.log(error);
+    return c.json({ message: "Server error" }, 500);
+  }
+});
+
+app.get("/onboarding_data", async (c) => {
+  try {
+    //	Check authentication via token and supabase
+    const { isAuthenticated, user } = await adminAccess(c);
+    if (!isAuthenticated || !user?.id) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    const startDate = c.req.param("startDate")
+    const endDate = c.req.param("endDate");
+
+    const today = new Date();
+    //  Default to 30 days ago
+    const thirtyDaysAgo = new Date(today);
+  
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    let start = thirtyDaysAgo.toISOString();
+    let end = new Date().toISOString();
+    if(startDate) {
+      start = new Date(startDate).toISOString();
+    }
+
+    if(endDate) {
+      end = new Date(endDate).toISOString();
+    }
+
+    const data = await getOnboardingDataByDateRange(c, start, end);
+    
+    return c.json({ data: data }, 200);
+  } catch (error) {
+    console.log(error);
+    return c.json({ message: "Server error" }, 500);
+  }
+});
+
+app.get("/deployment_source", async (c) => {
+  try {
+    //	Check authentication via token and supabase
+    const { isAuthenticated, user } = await adminAccess(c);
+    if (!isAuthenticated || !user?.id) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    const startDate = c.req.param("startDate")
+    const endDate = c.req.param("endDate");
+
+    const today = new Date();
+    //  Default to 30 days ago
+    const thirtyDaysAgo = new Date(today);
+  
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    let start = thirtyDaysAgo.toISOString();
+    let end = new Date().toISOString();
+    if(startDate) {
+      start = new Date(startDate).toISOString();
+    }
+
+    if(endDate) {
+      end = new Date(endDate).toISOString();
+    }
+
+    const data = await getSiteDeploymentSources(c, start, end);
 
     return c.json({ data: data }, 200);
   } catch (error) {
