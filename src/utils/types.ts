@@ -148,3 +148,15 @@ export type Key = {
 export interface PlanMapping {
   [key: string]: "orbit" | "launch";
 }
+
+export type OnboardingResponse = {
+  referral_source: string;
+  site_types: string;
+  technical_experience: string;
+  previous_platform: string;
+}
+
+export interface SourceCount {
+  value: string;
+  count: number;
+}
