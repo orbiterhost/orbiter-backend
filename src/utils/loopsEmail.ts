@@ -15,3 +15,17 @@ export const sendTransactionalEmail = async (c: Context, body: string) => {
         throw error;
     }
 }
+
+export const sendNoSiteEmail = async () => {
+    try {
+        //  Get all of the users who have signed up 7 days ago but have not set up a site
+        const today = new Date();
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 7);
+
+        
+    } catch (error) {
+        console.log(error);
+        throw error;
+    }
+}

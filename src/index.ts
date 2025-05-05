@@ -1,4 +1,4 @@
-import { Context, Hono } from "hono";
+import { Context, Env, Hono } from "hono";
 import { Bindings } from "./utils/types";
 import { cors } from "hono/cors";
 import sites from "./routes/sites";
@@ -35,4 +35,27 @@ app.get("/health", async (c: Context<{ Bindings: Bindings }>) => {
   return c.json({ status: "orbiting" }, 200);
 });
 
-export default app;
+export default {
+    scheduled(
+      event: ScheduledEvent,
+      env: {
+        DB?: any;
+        SENDGRID_API_KEY: any;
+      },
+      ctx: ExecutionContext
+    ) {
+      switch (event.cron) {
+        case "0 0 * * *":
+          // Every three minutes
+          await updateAPI();
+          break;
+      }
+      console.log("cron processed");
+    },
+
+    fetch(request: Request, env: Env, ctx: ExecutionContext) {
+      return app.fetch(request, env, ctx);
+    },
+  };
+
+// export default app;
