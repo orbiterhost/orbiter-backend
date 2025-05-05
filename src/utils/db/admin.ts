@@ -173,3 +173,71 @@ export const getSiteDeploymentSources = async (
   
     return result.sort((a, b) => b.count - a.count);
 };
+
+export const banUserFromAuth = async (c: Context, email: string) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  const { data: userData, error: userError } = await supabase.from("users").select("id").eq("email", email)
+  console.log(userData);
+
+  if(userError) {
+    throw userError
+  }
+
+  const { data, error } = await supabase.auth.admin.updateUserById(
+    userData[0].id,
+    {
+      app_metadata: {
+        banned: 'true'
+      }
+    }
+  )
+}
+
+export const removeUserBan = async (c: Context, email: string) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  const { data: userData, error: userError } = await supabase.from("users").select("id").eq("email", email)
+  console.log(userData);
+
+  if(userError) {
+    throw userError
+  }
+
+  const { data, error } = await supabase.auth.admin.updateUserById(
+    userData[0].id,
+    {
+      app_metadata: {
+        banned: 'false'
+      }
+    }
+  )
+}
+
+export const getUserMetadata = async (c: Context, email: string) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  const { data: userData, error: userError } = await supabase.from("users").select("id").eq("email", email)
+  console.log(userData);
+
+  if(userError) {
+    throw userError
+  }
+  
+  const { data: user, error } = await supabase.auth.admin.getUserById(userData[0].id)
+
+  if(error) {
+    throw error;
+  }
+  
+  return user;
+}

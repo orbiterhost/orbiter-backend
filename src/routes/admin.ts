@@ -3,12 +3,15 @@ import { cors } from "hono/cors";
 import { Bindings } from "../utils/types";
 import { adminAccess } from "../middleware/auth";
 import {
+  banUserFromAuth,
   getDailyUsers,
   getDailyVersions,
   getOnboardingDataByDateRange,
   getSiteCount,
   getSiteDeploymentSources,
   getUserCount,
+  getUserMetadata,
+  removeUserBan,
 } from "../utils/db/admin";
 import { calculateMRR, getActiveSubscriptions } from "../utils/stripe";
 import { getWalletBalance } from "../utils/viem";
@@ -231,6 +234,57 @@ app.post("/block_site", async (c) => {
     await purgeCache(c, domain);
 
     return c.json({ message: "Success!" }, 200);
+  } catch (error) {
+    console.log(error);
+    return c.json({ message: "Server error" }, 500);
+  }
+})
+
+app.post("/ban_user", async (c) => {
+  try {
+    const { isAuthenticated, user } = await adminAccess(c);
+    if (!isAuthenticated || !user?.id) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    const { email } = await c.req.json();
+    await banUserFromAuth(c, email);
+    return c.json({ message: "Success" }, 200);
+  } catch (error) {
+    console.log(error);
+    return c.json({ message: "Server error" }, 500)
+  }
+});
+
+app.put("/remove_ban", async (c) => {
+  try {
+    const { isAuthenticated, user } = await adminAccess(c);
+    if (!isAuthenticated || !user?.id) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    const { email } = await c.req.json();
+
+    await removeUserBan(c, email);
+
+    return c.json({ message: "Success" }, 500);
+  } catch (error) {
+    console.log(error);
+    return c.json({ message: "Server error" }, 500);
+  }
+});
+
+app.get("/user_ban/:email", async(c) => {
+  try {
+    const { isAuthenticated, user } = await adminAccess(c);
+    if (!isAuthenticated || !user?.id) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    const email = c.req.param("email");
+
+    const data = await getUserMetadata(c, email);
+    return c.json({ data }, 200);
   } catch (error) {
     console.log(error);
     return c.json({ message: "Server error" }, 500);
