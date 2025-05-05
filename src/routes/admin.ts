@@ -160,7 +160,7 @@ app.get("/onboarding_data", async (c) => {
     const today = new Date();
     //  Default to 30 days ago
     const thirtyDaysAgo = new Date(today);
-  
+
     thirtyDaysAgo.setDate(today.getDate() - 30);
     let start = thirtyDaysAgo.toISOString();
     let end = new Date().toISOString();
@@ -173,7 +173,7 @@ app.get("/onboarding_data", async (c) => {
     }
 
     const data = await getOnboardingDataByDateRange(c, start, end);
-    
+
     return c.json({ data: data }, 200);
   } catch (error) {
     console.log(error);
@@ -195,7 +195,7 @@ app.get("/deployment_source", async (c) => {
     const today = new Date();
     //  Default to 30 days ago
     const thirtyDaysAgo = new Date(today);
-  
+
     thirtyDaysAgo.setDate(today.getDate() - 30);
     let start = thirtyDaysAgo.toISOString();
     let end = new Date().toISOString();
@@ -224,7 +224,7 @@ app.post("/block_site", async (c) => {
       return c.json({ message: "Unauthorized" }, 401);
     }
 
-    if (!domain.includes("https") || !domain.include("orbiter.website")) {
+    if (!domain.includes("https") || !domain.includes("orbiter.website")) {
       return c.json({ message: "Please use full domain like: https://somedomain.orbiter.website" }, 400)
     }
 
@@ -324,7 +324,7 @@ app.post("/block_user", async (c) => {
 })
 
 app.post("/backfill-site-contracts", async (c) => {
-  try {    
+  try {
     const { isAuthenticated, user } = await adminAccess(c);
     if (!isAuthenticated || !user?.id) {
       return c.json({ message: "Unauthorized" }, 401);
