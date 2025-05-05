@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { Bindings } from "../utils/types";
 import { adminAccess } from "../middleware/auth";
 import {
+  addCidToBadContentList,
   banUserFromAuth,
   getDailyUsers,
   getDailyVersions,
@@ -218,20 +219,22 @@ app.get("/deployment_source", async (c) => {
 
 app.post("/block_site", async (c) => {
   try {
-    const { domain } = await c.req.json();
+    const { subdomain } = await c.req.json();
     const { isAuthenticated, user } = await adminAccess(c);
     if (!isAuthenticated || !user?.id) {
       return c.json({ message: "Unauthorized" }, 401);
     }
 
-    if (!domain.includes("https") || !domain.includes("orbiter.website")) {
-      return c.json({ message: "Please use full domain like: https://somedomain.orbiter.website" }, 400)
+    if (subdomain.includes("https") || subdomain.includes("orbiter.website")) {
+      return c.json({ message: "Please only use the subdomain (mysite instead of mysite.orbiter.website)" }, 400)
     }
 
-    const subdomain = domain.split(".orbiter.website")[0].split("https://")[1];
-
+    const domain = `https://${subdomain}.orbiter.website`;
     await deleteSubdomain(c.env, subdomain);
+
     await purgeCache(c, domain);
+
+    await addCidToBadContentList(c, domain.split("https://")[1]);
 
     return c.json({ message: "Success!" }, 200);
   } catch (error) {
