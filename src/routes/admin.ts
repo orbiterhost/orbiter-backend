@@ -372,5 +372,33 @@ app.post("/backfill-site-contract/:id", async (c) => {
   }
 })
 
+app.post("/backfill-site-contract-cid/:id", async (c) => {
+  const siteId = c.req.param('id')
+  try {
+    const { isAuthenticated, user } = await adminAccess(c);
+    if (!isAuthenticated || !user?.id) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    if (!siteId){
+      return c.json({ message: "Missing site ID" }, 400);
+    }
+
+    const site = await getSiteById(c, siteId)
+
+    await c.env.CONTRACT_QUEUE.send({
+      type: 'update_contract',
+      cid: site.cid,
+      contractAddress: site.site_contract as `0x${string}`,
+      siteId: site.id,
+    });
+
+    return c.text("Done!");
+  } catch (error) {
+    console.log(error);
+    return c.json({ message: "Server error" }, 500);
+  }
+})
+
 
 export default app;
