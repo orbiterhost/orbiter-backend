@@ -19,7 +19,7 @@ import { getWalletBalance } from "../utils/viem";
 import { deleteSubdomain, purgeCache } from "../utils/subdomains";
 import { blockUser } from "../utils/db/users";
 import { slowEquals } from "../utils/security";
-import { getAllSites } from "../utils/db/sites";
+import { getAllSites, getSiteById } from "../utils/db/sites";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -347,5 +347,29 @@ app.post("/backfill-site-contracts", async (c) => {
     return c.json({ message: "Server error" }, 500);
   }
 })
+
+app.post("/backfill-site-contract/:id", async (c) => {
+  const siteId = c.req.param('id')
+  try {
+    const { isAuthenticated, user } = await adminAccess(c);
+    if (!isAuthenticated || !user?.id) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    const site = await getSiteById(c, siteId)
+
+    await c.env.CONTRACT_QUEUE.send({
+      type: 'create_contract',
+      cid: site.cid,
+      siteId: site.id,
+    });
+
+    return c.text("Done!");
+  } catch (error) {
+    console.log(error);
+    return c.json({ message: "Server error" }, 500);
+  }
+})
+
 
 export default app;
