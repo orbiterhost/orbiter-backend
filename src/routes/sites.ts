@@ -205,7 +205,8 @@ app.post("/", async (c) => {
       cid: cid,
       domain: subdomain.toLowerCase(),
       userId: user ? user.id : organizationData?.orgOwner,
-      orgId: orgId
+      orgId: orgId,
+      retryCount: 3
     });
 
     const html: any = await getSiteData(c, cid);

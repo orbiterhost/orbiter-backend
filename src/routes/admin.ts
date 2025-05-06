@@ -362,6 +362,7 @@ app.post("/backfill-site-contract/:id", async (c) => {
       type: 'create_contract',
       cid: site.cid,
       siteId: site.id,
+      retryCount: 3
     });
 
     return c.text("Done!");
