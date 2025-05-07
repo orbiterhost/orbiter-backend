@@ -149,27 +149,138 @@ export const getSiteDeploymentSources = async (
     .from("site_versions")
     .select("source")
     .gte("created_at", startDate)
-    .lte("created_at", endDate)
+    .lte("created_at", endDate);
 
-    if (error) {
-      throw new Error(`Error fetching source data: ${error.message}`);
-    }
-  
-    if (!data || data.length === 0) {
-      return [];
-    }
-  
-    const sourceCounts: Record<string, number> = {};
-    
-    data.forEach(record => {
-      const source = record.source === null ? 'web-app' : record.source;
-      sourceCounts[source] = (sourceCounts[source] || 0) + 1;
-    });
-  
-    const result: SourceCount[] = Object.entries(sourceCounts).map(([source, count]) => ({
+  if (error) {
+    throw new Error(`Error fetching source data: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  const sourceCounts: Record<string, number> = {};
+
+  data.forEach((record) => {
+    const source = record.source === null ? "web-app" : record.source;
+    sourceCounts[source] = (sourceCounts[source] || 0) + 1;
+  });
+
+  const result: SourceCount[] = Object.entries(sourceCounts).map(
+    ([source, count]) => ({
       value: source,
-      count
-    }));
-  
-    return result.sort((a, b) => b.count - a.count);
+      count,
+    })
+  );
+
+  return result.sort((a, b) => b.count - a.count);
+};
+
+export const banUserFromAuth = async (c: Context, email: string) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  const { data: userData, error: userError } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", email);
+  console.log(userData);
+
+  if (userError) {
+    throw userError;
+  }
+
+  const { data, error } = await supabase.auth.admin.updateUserById(
+    userData[0].id,
+    {
+      app_metadata: {
+        banned: "true",
+      },
+    }
+  );
+};
+
+export const removeUserBan = async (c: Context, email: string) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  const { data: userData, error: userError } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", email);
+  console.log(userData);
+
+  if (userError) {
+    throw userError;
+  }
+
+  const { data, error } = await supabase.auth.admin.updateUserById(
+    userData[0].id,
+    {
+      app_metadata: {
+        banned: "false",
+      },
+    }
+  );
+};
+
+export const getUserMetadata = async (c: Context, email: string) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  const { data: userData, error: userError } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", email);
+  console.log(userData);
+
+  if (userError) {
+    throw userError;
+  }
+
+  const { data: user, error } = await supabase.auth.admin.getUserById(
+    userData[0].id
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return user;
+};
+
+export const addCidToBadContentList = async (c: Context, domain: string) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  const { data, error } = await supabase
+    .from("sites")
+    .select("*")
+    .eq("domain", domain);
+
+  if (error) {
+    console.log("Supabase error: ", error);
+    throw error;
+  }
+
+  if (data && data[0]) {
+    const cid = data[0].cid;
+
+    const { error: badContentError } = await supabase
+      .from("bad_content")
+      .insert([{ cid: cid, domain: domain, blocked: true }]);
+    
+    if(badContentError) {
+      console.log("Supabase bad content insert error: ", badContentError);
+      throw badContentError;
+    }
+  }
 };

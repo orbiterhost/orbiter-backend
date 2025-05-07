@@ -59,7 +59,7 @@ export const deleteSubdomain = async (env: Bindings, subdomain: string) => {
 
     // First, find the DNS record ID for the subdomain
     const listResponse = await fetch(
-      `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?name=${subdomain}`,
+      `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?name.contains=${subdomain}`,
       {
         headers: {
           Authorization: `Bearer ${API_TOKEN}`,

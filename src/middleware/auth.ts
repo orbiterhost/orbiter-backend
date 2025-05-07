@@ -48,8 +48,11 @@ export const getUserSession = async (c: Context) => {
       data: { user },
     } = await supabase.auth.getUser(token);
 
-    console.log("Is there an orgId?")
-    console.log(user);
+    if(user?.app_metadata.banned === "true") {
+      return {
+        isAuthenticated: false,
+      };
+    }
 
     if (user && user.id) {
       return {

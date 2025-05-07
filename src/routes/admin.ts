@@ -3,19 +3,23 @@ import { cors } from "hono/cors";
 import { Bindings } from "../utils/types";
 import { adminAccess } from "../middleware/auth";
 import {
+  addCidToBadContentList,
+  banUserFromAuth,
   getDailyUsers,
   getDailyVersions,
   getOnboardingDataByDateRange,
   getSiteCount,
   getSiteDeploymentSources,
   getUserCount,
+  getUserMetadata,
+  removeUserBan,
 } from "../utils/db/admin";
 import { calculateMRR, getActiveSubscriptions } from "../utils/stripe";
 import { getWalletBalance } from "../utils/viem";
 import { deleteSubdomain, purgeCache } from "../utils/subdomains";
 import { blockUser } from "../utils/db/users";
 import { slowEquals } from "../utils/security";
-import { getAllSites } from "../utils/db/sites";
+import { getAllSites, getSiteById } from "../utils/db/sites";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -157,7 +161,7 @@ app.get("/onboarding_data", async (c) => {
     const today = new Date();
     //  Default to 30 days ago
     const thirtyDaysAgo = new Date(today);
-  
+
     thirtyDaysAgo.setDate(today.getDate() - 30);
     let start = thirtyDaysAgo.toISOString();
     let end = new Date().toISOString();
@@ -170,7 +174,7 @@ app.get("/onboarding_data", async (c) => {
     }
 
     const data = await getOnboardingDataByDateRange(c, start, end);
-    
+
     return c.json({ data: data }, 200);
   } catch (error) {
     console.log(error);
@@ -192,7 +196,7 @@ app.get("/deployment_source", async (c) => {
     const today = new Date();
     //  Default to 30 days ago
     const thirtyDaysAgo = new Date(today);
-  
+
     thirtyDaysAgo.setDate(today.getDate() - 30);
     let start = thirtyDaysAgo.toISOString();
     let end = new Date().toISOString();
@@ -215,22 +219,75 @@ app.get("/deployment_source", async (c) => {
 
 app.post("/block_site", async (c) => {
   try {
-    const { domain } = await c.req.json();
+    const { subdomain } = await c.req.json();
     const { isAuthenticated, user } = await adminAccess(c);
     if (!isAuthenticated || !user?.id) {
       return c.json({ message: "Unauthorized" }, 401);
     }
 
-    if (!domain.includes("https") || !domain.include("orbiter.website")) {
-      return c.json({ message: "Please use full domain like: https://somedomain.orbiter.website" }, 400)
+    if (subdomain.includes("https") || subdomain.includes("orbiter.website")) {
+      return c.json({ message: "Please only use the subdomain (mysite instead of mysite.orbiter.website)" }, 400)
     }
 
-    const subdomain = domain.split(".orbiter.website")[0].split("https://")[1];
-
+    const domain = `https://${subdomain}.orbiter.website`;
     await deleteSubdomain(c.env, subdomain);
+
     await purgeCache(c, domain);
 
+    await addCidToBadContentList(c, domain.split("https://")[1]);
+
     return c.json({ message: "Success!" }, 200);
+  } catch (error) {
+    console.log(error);
+    return c.json({ message: "Server error" }, 500);
+  }
+})
+
+app.post("/ban_user", async (c) => {
+  try {
+    const { isAuthenticated, user } = await adminAccess(c);
+    if (!isAuthenticated || !user?.id) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    const { email } = await c.req.json();
+    await banUserFromAuth(c, email);
+    return c.json({ message: "Success" }, 200);
+  } catch (error) {
+    console.log(error);
+    return c.json({ message: "Server error" }, 500)
+  }
+});
+
+app.put("/remove_ban", async (c) => {
+  try {
+    const { isAuthenticated, user } = await adminAccess(c);
+    if (!isAuthenticated || !user?.id) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    const { email } = await c.req.json();
+
+    await removeUserBan(c, email);
+
+    return c.json({ message: "Success" }, 500);
+  } catch (error) {
+    console.log(error);
+    return c.json({ message: "Server error" }, 500);
+  }
+});
+
+app.get("/user_ban/:email", async(c) => {
+  try {
+    const { isAuthenticated, user } = await adminAccess(c);
+    if (!isAuthenticated || !user?.id) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    const email = c.req.param("email");
+
+    const data = await getUserMetadata(c, email);
+    return c.json({ data }, 200);
   } catch (error) {
     console.log(error);
     return c.json({ message: "Server error" }, 500);
@@ -270,7 +327,7 @@ app.post("/block_user", async (c) => {
 })
 
 app.post("/backfill-site-contracts", async (c) => {
-  try {    
+  try {
     const { isAuthenticated, user } = await adminAccess(c);
     if (!isAuthenticated || !user?.id) {
       return c.json({ message: "Unauthorized" }, 401);
@@ -290,5 +347,58 @@ app.post("/backfill-site-contracts", async (c) => {
     return c.json({ message: "Server error" }, 500);
   }
 })
+
+app.post("/backfill-site-contract/:id", async (c) => {
+  const siteId = c.req.param('id')
+  try {
+    const { isAuthenticated, user } = await adminAccess(c);
+    if (!isAuthenticated || !user?.id) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    const site = await getSiteById(c, siteId)
+
+    await c.env.CONTRACT_QUEUE.send({
+      type: 'create_contract',
+      cid: site.cid,
+      siteId: site.id,
+      retryCount: 3
+    });
+
+    return c.text("Done!");
+  } catch (error) {
+    console.log(error);
+    return c.json({ message: "Server error" }, 500);
+  }
+})
+
+app.post("/backfill-site-contract-cid/:id", async (c) => {
+  const siteId = c.req.param('id')
+  try {
+    const { isAuthenticated, user } = await adminAccess(c);
+    if (!isAuthenticated || !user?.id) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    if (!siteId){
+      return c.json({ message: "Missing site ID" }, 400);
+    }
+
+    const site = await getSiteById(c, siteId)
+
+    await c.env.CONTRACT_QUEUE.send({
+      type: 'update_contract',
+      cid: site.cid,
+      contractAddress: site.site_contract as `0x${string}`,
+      siteId: site.id,
+    });
+
+    return c.text("Done!");
+  } catch (error) {
+    console.log(error);
+    return c.json({ message: "Server error" }, 500);
+  }
+})
+
 
 export default app;
