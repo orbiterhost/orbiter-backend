@@ -41,38 +41,36 @@ export const sendNoSiteEmail = async (c: Context) => {
       return;
     }
 
-    console.log(orgs);
+    for (const org of orgs) {
+      const sites = await getSitesByOrgId(c, org.id);
+      if (sites?.length === 0) {
+        noSites.push({
+          orgId: org.id,
+          owner: org.owner_id,
+        });
+      }
+    }
 
-    // for (const org of orgs) {
-    //   const sites = await getSitesByOrgId(c, org.id);
-    //   if (sites?.length === 0) {
-    //     noSites.push({
-    //       orgId: org.id,
-    //       owner: org.owner_id,
-    //     });
-    //   }
-    // }
-
-    // for (const site of noSites) {
-    //   const user = await getUserById(c, site.owner);
-    //   if (user) {
-    //     const body = {
-    //       email: user.email,
-    //       eventName: "noSiteCreation",
-    //       eventProperties: {
-    //         signUpDate: user.created_at,
-    //       },
-    //     };
-    //     await fetch("https://app.loops.so/api/v1/events/send", {
-    //       method: "POST",
-    //       headers: {
-    //         "Content-Type": "application/json",
-    //         Authorization: `Bearer ${c.env.LOOPS_API_KEY}`,
-    //       },
-    //       body: JSON.stringify(body),
-    //     });
-    //   }
-    // }
+    for (const site of noSites) {
+      const user = await getUserById(c, site.owner);
+      if (user) {
+        const body = {
+          email: user.email,
+          eventName: "noSiteCreation",
+          eventProperties: {
+            signUpDate: user.created_at,
+          },
+        };
+        await fetch("https://app.loops.so/api/v1/events/send", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${c.env.LOOPS_API_KEY}`,
+          },
+          body: JSON.stringify(body),
+        });
+      }
+    }
   } catch (error) {
     console.log(error);
     throw error;
