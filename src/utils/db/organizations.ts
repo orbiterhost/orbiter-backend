@@ -404,3 +404,24 @@ export const getOrgByOwnerId = async (c: Context, id: string) => {
     throw error;
   }
 };
+
+export const getOrganizationsCreatedByDateRange = async (c: Context, startDate: string, endDate: string) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  let { data: organizations, error: orgError } = await supabase
+      .from("organizations")
+      .select("*")
+      .gte("created_at", startDate)
+      .lte("created_at", endDate);
+
+  if(orgError) {
+    console.log("Error getting organizations during cron job: ", JSON.stringify({startDate, endDate}));
+    console.log(orgError);
+    throw orgError;
+  }
+    
+  return organizations;
+}

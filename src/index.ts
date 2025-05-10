@@ -1,4 +1,4 @@
-import { Context, Hono } from "hono";
+import { Context, Env, Hono } from "hono";
 import { Bindings } from "./utils/types";
 import { cors } from "hono/cors";
 import sites from "./routes/sites";
@@ -13,6 +13,7 @@ import members from "./routes/members";
 import resolve from "./routes/resolve"
 import ens from "./routes/ens";
 import farcaster from "./routes/farcaster";
+import { sendNoSiteEmail } from "./utils/loopsEmail";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -35,4 +36,27 @@ app.get("/health", async (c: Context<{ Bindings: Bindings }>) => {
   return c.json({ status: "orbiting" }, 200);
 });
 
-export default app;
+export default {
+    async scheduled(
+      event: ScheduledEvent,
+      env: Env,
+      ctx: ExecutionContext
+    ) {
+
+      const c: any = {
+        env: env
+      }
+
+      switch (event.cron) {
+        case "0 0 * * *":
+          await sendNoSiteEmail(c);
+          break;
+      }
+      console.log("cron processed");
+    },
+    fetch(request: Request, env: Env, ctx: ExecutionContext) {
+      return app.fetch(request, env, ctx);
+    },
+  };
+
+// export default app;

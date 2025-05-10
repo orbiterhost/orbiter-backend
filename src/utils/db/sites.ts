@@ -354,3 +354,22 @@ export const getCustomDomainByName = async (
     throw error;
   }
 };
+
+export const getSitesByOrgId = async (c: Context, orgId: string) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  const { data: sites, error } = await supabase
+    .from("sites")
+    .select("*")
+    .eq("organization_id", orgId);
+  
+  if(error) {
+    console.log("Trouble getting site data for orgId: ", orgId)
+    console.log(error);
+  } else {
+    return sites;
+  }
+}
