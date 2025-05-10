@@ -13,6 +13,7 @@ import members from "./routes/members";
 import resolve from "./routes/resolve"
 import ens from "./routes/ens";
 import farcaster from "./routes/farcaster";
+import { sendNoSiteEmail } from "./utils/loopsEmail";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -36,23 +37,23 @@ app.get("/health", async (c: Context<{ Bindings: Bindings }>) => {
 });
 
 export default {
-    scheduled(
+    async scheduled(
       event: ScheduledEvent,
-      env: {
-        DB?: any;
-        SENDGRID_API_KEY: any;
-      },
+      env: Env,
       ctx: ExecutionContext
     ) {
+
+      const c: any = {
+        env: env
+      }
+
       switch (event.cron) {
         case "0 0 * * *":
-          // Every three minutes
-          await updateAPI();
+          await sendNoSiteEmail(c);
           break;
       }
       console.log("cron processed");
     },
-
     fetch(request: Request, env: Env, ctx: ExecutionContext) {
       return app.fetch(request, env, ctx);
     },
