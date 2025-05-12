@@ -16,7 +16,7 @@ import {
   validateSubdomain,
 } from "../utils/subdomains";
 import { createContract, writeCID } from "../utils/viem";
-import { getSiteData } from "../utils/pinata";
+import { getRedirectsFile, getSiteData } from "../utils/pinata";
 import { detectMaliciousContent } from "../utils/security";
 import {
   postNewSiteToSlack,
@@ -39,6 +39,7 @@ import {
   getCustomDomainByName,
 } from "../utils/db/sites";
 import { getUserById } from "../utils/db/users";
+import { parseRedirectsFile } from "../utils/redirects";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -170,6 +171,17 @@ app.post("/", async (c) => {
 
     const orgId = user ? user.user_metadata.orgId : organizationData.id;
 
+    //  Need to get plan details to see if _redirects supported
+    const plan = (await c.env.SITE_PLANS.get(orgId)) || "free";
+
+    if(plan !== "free") {
+      const redirectsFile = await getRedirectsFile(c, cid);
+      if(redirectsFile) {
+        const redirectsJSON = parseRedirectsFile(redirectsFile as string);
+        await c.env.REDIRECTS.put(subdomain.toLowerCase(), JSON.stringify(redirectsJSON));
+      }
+    }
+
     if (organizationData && organizationData.id !== orgId) {
       return c.json({ message: "Org ID does not match" }, 401);
     } else if (user) {
@@ -269,7 +281,16 @@ app.put("/:siteId", async (c) => {
 
     const { site_contract, domain, organization_id } = siteInfo;
 
-    console.log(siteInfo);
+    //  Need to get plan details to see if _redirects supported
+    const plan = (await c.env.SITE_PLANS.get(organization_id)) || "free";
+    
+    if(plan !== "free") {
+      const redirectsFile = await getRedirectsFile(c, cid);
+      if(redirectsFile) {
+        const redirectsJSON = await parseRedirectsFile(redirectsFile as string);
+        await c.env.REDIRECTS.put(domain.toLowerCase(), JSON.stringify(redirectsJSON));
+      }
+    }
 
     await purgeCache(c, siteInfo.domain);
 

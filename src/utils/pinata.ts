@@ -38,3 +38,18 @@ export const getSiteData = async (c: Context, cid: string) => {
     throw error;
   }
 };
+
+export const getRedirectsFile = async (c: Context, cid: string) => {
+  try {
+    const pinata = new PinataSDK({
+      pinataJwt: c.env.PINATA_JWT,
+      pinataGateway: c.env.PINATA_GATEWAY,
+    });
+    console.log(cid);
+    const data = await pinata.gateways.get(`${cid}/_redirects`);
+    return data.data;
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
+}

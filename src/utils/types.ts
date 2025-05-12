@@ -14,6 +14,7 @@ export type Bindings = {
   SITE_PLANS: KVNamespace;
   SITE_CONTRACT: KVNamespace;
   SITE_TO_ORG: KVNamespace;
+  REDIRECTS: KVNamespace;
   CONTRACT_ADDRESS: string;
   ORBITER_PRIVATE_KEY: string;
   CHANNEL_ID: string;
