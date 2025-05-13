@@ -40,6 +40,10 @@ id = "cd51f5e3da4946d99530e1b825d94b2e"
 binding = "SITE_CONTRACT"
 id = "0a2dc5df8dda441aa9a7b47a09411001"
 
+[[kv_namespaces]]
+binding = "REDIRECTS"
+id = "5a55237f2b0646599e637edb8f4154c7"
+
 [[queues.producers]]
 binding = "CONTRACT_QUEUE"
 queue = "contract-queue"
