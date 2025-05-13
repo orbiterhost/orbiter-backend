@@ -281,14 +281,18 @@ app.put("/:siteId", async (c) => {
 
     const { site_contract, domain, organization_id } = siteInfo;
 
+    const domainPrefix = domain.split(".orbiter.website")[0];
+
     //  Need to get plan details to see if _redirects supported
     const plan = (await c.env.SITE_PLANS.get(organization_id)) || "free";
     
-    if(plan !== "free") {
+    if(plan !== "free") {      
       const redirectsFile = await getRedirectsFile(c, cid);
+      console.log("Checking for redirects file: ", redirectsFile)
       if(redirectsFile) {
         const redirectsJSON = await parseRedirectsFile(redirectsFile as string);
-        await c.env.REDIRECTS.put(domain.toLowerCase(), JSON.stringify(redirectsJSON));
+        console.log("Parsed redirects: ", redirectsJSON);
+        await c.env.REDIRECTS.put(domainPrefix.toLowerCase(), JSON.stringify(redirectsJSON));
       }
     }
 
@@ -306,10 +310,6 @@ app.put("/:siteId", async (c) => {
     }
 
     //	Next we need to map the user's domain to the new CID using Cloudflare KV
-    const domainPrefix = domain.split(".orbiter.website")[0];
-
-    console.log({ domainPrefix });
-
     await c.env.ORBITER_SITES.put(domainPrefix.toLowerCase(), cid);
     //	If the user has a custom domain, we must map both the custom domain and default domain to the CID
     //	Update DB record for customer's site
