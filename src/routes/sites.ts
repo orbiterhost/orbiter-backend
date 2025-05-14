@@ -158,7 +158,6 @@ app.get("/", async (c) => {
 //	Create or update an existing site based on userId
 app.post("/", async (c) => {
   try {
-    console.log("Creating site")
     const body = await c.req.json();
     const source = c.req.header("Source") || "";
     //	The CID comes from the frontend since the FE will be handling the site upload
@@ -174,15 +173,19 @@ app.post("/", async (c) => {
 
     //  Need to get plan details to see if _redirects supported
     const plan = (await c.env.SITE_PLANS.get(orgId)) || "free";
-    console.log({sitePlan: plan});
     if(plan !== "free") {
-      const redirectsFile = await getRedirectsFile(c, cid);
-      if(redirectsFile) {
-        const redirectsJSON = parseRedirectsFile(redirectsFile as string);
-        await c.env.REDIRECTS.put(subdomain.toLowerCase(), JSON.stringify(redirectsJSON));
-      }
+      try {
+        const redirectsFile = await getRedirectsFile(c, cid);
+        if(redirectsFile) {
+          const redirectsJSON = parseRedirectsFile(redirectsFile as string);
+          await c.env.REDIRECTS.put(subdomain.toLowerCase(), JSON.stringify(redirectsJSON));
+        } 
+      } catch (error) {
+        //  Don't throw
+        console.log("Error with redirects: ", error);
+      }      
     }
-    console.log("Made it past the redirects stuff")
+
     if (organizationData && organizationData.id !== orgId) {
       return c.json({ message: "Org ID does not match" }, 401);
     } else if (user) {

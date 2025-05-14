@@ -1,4 +1,4 @@
-export const parseRedirectsFile = async (content: string) => {
+export const parseRedirectsFile = (content: string) => {
   const rules = [];
   try {
     const lines = content.split("\n");

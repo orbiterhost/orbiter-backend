@@ -41,13 +41,9 @@ export const getSiteData = async (c: Context, cid: string) => {
 
 export const getRedirectsFile = async (c: Context, cid: string) => {
   try {
-    const pinata = new PinataSDK({
-      pinataJwt: c.env.PINATA_JWT,
-      pinataGateway: c.env.PINATA_GATEWAY,
-    });
-    console.log(cid);
-    const data = await pinata.gateways.get(`${cid}/_redirects`);
-    return data.data;
+    const data = await fetch(`https://${c.env.PINATA_GATEWAY}/ipfs/${cid}/_redirects`);
+    const text = await data.text();    
+    return text;
   } catch (error) {
     console.log(error);
     return null;
