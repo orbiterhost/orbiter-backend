@@ -42,6 +42,10 @@ export const getSiteData = async (c: Context, cid: string) => {
 export const getRedirectsFile = async (c: Context, cid: string) => {
   try {
     const data = await fetch(`https://${c.env.PINATA_GATEWAY}/ipfs/${cid}/_redirects`);
+    if (!data.ok) {
+      console.log(`Failed to fetch _redirects file: ${data.status} ${data.statusText}`);
+      return null;
+    }
     const text = await data.text();    
     return text;
   } catch (error) {
