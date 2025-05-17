@@ -8,7 +8,6 @@ import {
   animals,
 } from "unique-names-generator";
 
-
 export const generateSubdomainText = () => {
   try {
     return uniqueNamesGenerator({
@@ -37,10 +36,10 @@ export const createSubdomain = async (env: Bindings, subdomain: string) => {
         body: JSON.stringify({
           type: "CNAME",
           name: subdomain,
-          content: "orbiter-websites.orbiter-api.workers.dev", 
+          content: "orbiter-websites.orbiter-api.workers.dev",
           proxied: true,
         }),
-      }
+      },
     );
 
     const result = await response.json();
@@ -65,11 +64,11 @@ export const deleteSubdomain = async (env: Bindings, subdomain: string) => {
           Authorization: `Bearer ${API_TOKEN}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
-    
+
     const listResult: any = await listResponse.json();
-    
+
     if (!listResult?.success || !listResult?.result.length) {
       throw new Error(`No DNS record found for subdomain: ${subdomain}`);
     }
@@ -85,13 +84,12 @@ export const deleteSubdomain = async (env: Bindings, subdomain: string) => {
           Authorization: `Bearer ${API_TOKEN}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     const deleteResult = await deleteResponse.json();
     console.log(deleteResult);
     return deleteResult;
-
   } catch (error) {
     console.log("Delete subdomain error: ", error);
     throw error;
@@ -100,7 +98,7 @@ export const deleteSubdomain = async (env: Bindings, subdomain: string) => {
 
 export const checkSubdomainDNSRecord = async (
   env: Bindings,
-  subdomain: string
+  subdomain: string,
 ) => {
   const baseUrl = "https://api.cloudflare.com/client/v4";
 
@@ -113,21 +111,20 @@ export const checkSubdomainDNSRecord = async (
           Authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     if (!response.ok) {
       const errorData: any = await response.json();
       throw new Error(
-        `Cloudflare API error: ${
-          errorData.errors[0]?.message || "Unknown error"
-        }`
+        `Cloudflare API error: ${errorData.errors[0]?.message || "Unknown error"
+        }`,
       );
     }
 
     const data: any = await response.json();
 
-    console.log("Results from subdomain check: ")
+    console.log("Results from subdomain check: ");
     console.log(data);
 
     // Check if any DNS records exist for this subdomain
@@ -146,19 +143,20 @@ export const checkSubdomainDNSRecord = async (
 
 export async function purgeCache(c: Context, domain: string) {
   try {
-    const response = await fetch(`https://api.cloudflare.com/client/v4/zones/${c.env.ZONE_ID}/purge_cache`, {
-      method: "POST", 
-      headers: {
-        Authorization: `Bearer ${c.env.CLOUDFLARE_API_TOKEN}`,
-        "Content-Type": "application/json",
+    const response = await fetch(
+      `https://api.cloudflare.com/client/v4/zones/${c.env.ZONE_ID}/purge_cache`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${c.env.CLOUDFLARE_API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          hosts: [`https://${domain}/*`],
+        }),
       },
-      body: JSON.stringify({
-        hosts: [
-          `https://${domain}/*`
-        ]
-      })
-    })
-    
+    );
+
     const data = await response.json();
     return data;
   } catch (error) {
@@ -312,7 +310,7 @@ export const validateSubdomain = (subdomain: string) => {
     validation.isValid = false;
     validation.errors.push(
       "Subdomain can only contain lowercase letters, numbers, and hyphens. " +
-        "It must start and end with a letter or number"
+      "It must start and end with a letter or number",
     );
   }
 
@@ -340,14 +338,14 @@ export const validateSubdomain = (subdomain: string) => {
     /account/i,
     /update/i,
     /verify/i,
-    /wallet/i,
+    /(?<!walletbeat.*)wallet(?!.*beat)/i,
   ];
 
   for (const pattern of deceptivePatterns) {
     if (pattern.test(normalizedSubdomain)) {
       validation.isValid = false;
       validation.errors.push(
-        "This subdomain name is not allowed as it may be misleading"
+        "This subdomain name is not allowed as it may be misleading",
       );
       break;
     }
