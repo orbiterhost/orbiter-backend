@@ -338,7 +338,7 @@ export const validateSubdomain = (subdomain: string) => {
     /account/i,
     /update/i,
     /verify/i,
-    /(?<!walletbeat.*)wallet(?!.*beat)/i,
+    ///(?<!walletbeat.*)wallet(?!.*beat)/i,
   ];
 
   for (const pattern of deceptivePatterns) {
