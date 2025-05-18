@@ -66,3 +66,6 @@ queue = "contract-queue"
 [observability]
 enabled = true
 head_sampling_rate = 0.50 # 1% sampling rate
+
+[triggers]
+crons = ["0 0 * * *"]
