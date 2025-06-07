@@ -4,6 +4,7 @@ import { ACTIONS } from "./constants";
 export type Bindings = {
   ZONE_ID: string;
   CLOUDFLARE_API_TOKEN: string;
+  CLOUDFLARE_ACCOUNT_ID: string;
   RECAPTCHA_SECRET_KEY: string;
   RECAPTCHA_SITE_KEY: string;
   SUPABASE_URL: string;
@@ -15,6 +16,8 @@ export type Bindings = {
   SITE_CONTRACT: KVNamespace;
   SITE_TO_ORG: KVNamespace;
   REDIRECTS: KVNamespace;
+  WORKERS: KVNamespace;
+  DB: D1Database;
   CONTRACT_ADDRESS: string;
   ORBITER_PRIVATE_KEY: string;
   CHANNEL_ID: string;
