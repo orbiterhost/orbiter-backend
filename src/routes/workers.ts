@@ -80,7 +80,7 @@ app.post("/deploy/:siteId", async (c) => {
       siteInfo = await canModifySite(c, siteId, user.id);
     }
 
-    const scriptName = siteInfo.id; //generateWorkerScriptName(siteId, organizationId, name);
+    const scriptName = siteInfo.domain.split(".")[0]; //generateWorkerScriptName(siteId, organizationId, name);
 
     console.log("=== DEPLOYING WORKER TO DISPATCH NAMESPACE ===");
     console.log("Account ID:", c.env.CLOUDFLARE_ACCOUNT_ID);
@@ -173,7 +173,7 @@ app.post("/deploy/:siteId", async (c) => {
     }
 
     // Store metadata in KV
-    const workerKey = `worker:${siteInfo.domain}`;
+    const workerKey = `worker:${siteInfo.domain.split(".")[0]}`;
     const workerMetadata: WorkerMetadata = {
       script,
       environment: environment || {},
