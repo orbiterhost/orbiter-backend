@@ -10,7 +10,7 @@ export const issueSSLCertAndProxyCustomDomain = async (
     console.log({
       customDomain,
       subdomain,
-      token: c.env.NGINX_SERVER_TOKEN, // Log token being sent (be careful with this in production)
+      // Removed token logging for security
     });
 
     const requestInit = {
@@ -37,7 +37,7 @@ export const issueSSLCertAndProxyCustomDomain = async (
     console.log("Initial response:", {
       status: res.status,
       statusText: res.statusText,
-      headers: Object.fromEntries(res.headers.entries()),
+      headers: res.headers,
       url: res.url,
     });
 
@@ -49,7 +49,7 @@ export const issueSSLCertAndProxyCustomDomain = async (
       console.log("Redirect response:", {
         status: redirectRes.status,
         statusText: redirectRes.statusText,
-        headers: Object.fromEntries(redirectRes.headers.entries()),
+        headers: redirectRes.headers,
         url: redirectRes.url,
       });
 

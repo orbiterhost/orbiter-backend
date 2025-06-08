@@ -16,7 +16,7 @@ export type Bindings = {
   SITE_CONTRACT: KVNamespace;
   SITE_TO_ORG: KVNamespace;
   REDIRECTS: KVNamespace;
-  WORKERS: KVNamespace;
+  FUNCTIONS: KVNamespace;
   DB: D1Database;
   CONTRACT_ADDRESS: string;
   ORBITER_PRIVATE_KEY: string;
@@ -47,6 +47,10 @@ export type Bindings = {
   FARCASTER_MNEMONIC: string;
   FARCASTER_FID: string;
   CONTRACT_QUEUE: Queue;
+  WORKERS_NAMESPACE_ID: string;
+  WORKERS_SUBDOMAIN: string;
+  CLOUDFLARE_WORKERS_TOKEN: string;
+  DISPATCH_NAMESPACE_NAME: string;
 };
 
 export type Organization = {
