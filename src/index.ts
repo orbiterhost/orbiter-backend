@@ -14,7 +14,7 @@ import resolve from "./routes/resolve"
 import ens from "./routes/ens";
 import farcaster from "./routes/farcaster";
 import { sendNoSiteEmail } from "./utils/loopsEmail";
-import workers from "./routes/workers";
+import functions from "./routes/functions";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -32,7 +32,7 @@ app.route("/lookup", resolve);
 app.route("/ens", ens);
 app.route("/analytics", analytics);
 app.route("/farcaster", farcaster);
-app.route("/workers", workers);
+app.route("/functions", functions);
 
 app.get("/health", async (c: Context<{ Bindings: Bindings }>) => {
   return c.json({ status: "orbiting" }, 200);

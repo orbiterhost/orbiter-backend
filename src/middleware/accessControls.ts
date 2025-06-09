@@ -188,3 +188,17 @@ export const canMemberTakeAction = (role: string, action: string) => {
     return false;
   }
 };
+
+export const canCreateFunction = async (c: Context, orgId: string) => {
+  try {
+    const plan = (await c.env.SITE_PLANS.get(orgId)) || "free";
+    if(plan !== "free") {
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+};
