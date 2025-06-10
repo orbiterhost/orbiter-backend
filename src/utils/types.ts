@@ -169,3 +169,15 @@ export interface SourceCount {
   value: string;
   count: number;
 }
+
+export interface EnvironmentVariableBinding {
+  type: "secret_text";
+  name: string;
+  text: string;
+}
+
+export interface WorkerUpload {
+  script: string;
+  environment?: Record<string, any>;
+  bindings?: EnvironmentVariableBinding[];
+}

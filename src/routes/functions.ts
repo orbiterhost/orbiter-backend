@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { Bindings } from "../utils/types";
+import { Bindings, EnvironmentVariableBinding, WorkerUpload } from "../utils/types";
 import { getUserSession } from "../middleware/auth";
 import { canCreateFunction, canModifySite } from "../middleware/accessControls";
 import { getSiteById } from "../utils/db/sites";
@@ -9,42 +9,12 @@ const app = new Hono<{ Bindings: Bindings }>();
 
 app.use("/*", cors());
 
-interface WorkerUpload {
-  name: string;
-  script: string;
-  siteId: string;
-  routes?: string[];
-  environment?: Record<string, string>;
-  bindings?: Array<{
-    name: string;
-    type:
-      | "kv_namespace"
-      | "d1_database"
-      | "service"
-      | "plain_text"
-      | "secret_text";
-    [key: string]: any;
-  }>;
-}
-
 interface WorkerMetadata {
   script: string;
   environment: Record<string, string>;
   bindings: Array<any>;
   lastUpdated: string;
   deployedName: string;
-}
-
-// Helper function to generate unique worker names for Workers for Platforms
-function generateWorkerScriptName(
-  siteId: string,
-  organizationId: string,
-  workerName: string
-): string {
-  return `${organizationId}-${siteId}-${workerName}`.replace(
-    /[^a-zA-Z0-9-]/g,
-    "-"
-  );
 }
 
 // Upload and deploy a new worker using Workers for Platforms
@@ -63,6 +33,42 @@ app.post("/deploy/:siteId", async (c) => {
 
     if (!script || typeof script !== "string") {
       return c.json({ message: "Invalid worker script" }, 400);
+    }
+
+    let validatedBindings: EnvironmentVariableBinding[] = [];
+    if (bindings && Array.isArray(bindings)) {
+      validatedBindings = bindings.filter(binding => {
+        // Only allow secret_text bindings (environment variables)
+        if (binding.type !== "secret_text") {
+          console.warn(`Rejected binding type: ${binding.type}`);
+          return false;
+        }
+        
+        // Validate required fields
+        if (!binding.name || typeof binding.name !== "string") {
+          console.warn("Rejected binding: missing or invalid name");
+          return false;
+        }
+        
+        if (!binding.text || typeof binding.text !== "string") {
+          console.warn("Rejected binding: missing or invalid text value");
+          return false;
+        }
+
+        if (!/^[A-Z_][A-Z0-9_]*$/i.test(binding.name)) {
+          console.warn(`Invalid env var name format: ${binding.name}, env vars must contains only letters, numbers, or underscores`);
+          return false;
+        }
+
+        return true;
+      });
+
+      if (validatedBindings.length > 0) {
+        console.log(`Allowing ${validatedBindings.length} environment variable bindings:`);
+        validatedBindings.forEach(binding => {
+          console.log(`  - ${binding.name} (${binding.text.length} chars)`);
+        });
+      }
     }
 
     const organizationId = user
@@ -87,28 +93,23 @@ app.post("/deploy/:siteId", async (c) => {
       );
     }
 
-    const scriptName = siteInfo.domain.split(".")[0]; //generateWorkerScriptName(siteId, organizationId, name);
+    const scriptName = siteInfo.domain.split(".")[0];
 
     console.log("=== DEPLOYING WORKER TO DISPATCH NAMESPACE ===");
     console.log("Account ID:", c.env.CLOUDFLARE_ACCOUNT_ID);
     console.log("Dispatch Namespace:", c.env.DISPATCH_NAMESPACE_NAME);
     console.log("Script Name:", scriptName);
 
-    // **FIXED: Use correct Workers for Platforms API endpoint**
     const scriptsURI = `https://api.cloudflare.com/client/v4/accounts/${c.env.CLOUDFLARE_ACCOUNT_ID}/workers/dispatch/namespaces/${c.env.DISPATCH_NAMESPACE_NAME}/scripts`;
 
-    // **FIXED: Prepare FormData in the correct format**
     const formData = new FormData();
-
-    // The script filename (extension matters for module type)
     const scriptFileName = `${scriptName}.mjs`;
 
-    // **FIXED: Proper metadata structure**
+    // **UPDATED: Use validated bindings instead of raw bindings**
     const metadata = {
       main_module: scriptFileName,
-      // Add bindings if provided
-      ...(bindings && bindings.length > 0 && { bindings }),
-      // Add compatibility date
+      // Only include bindings if we have validated ones
+      ...(validatedBindings.length > 0 && { bindings: validatedBindings }),
       compatibility_date: "2024-06-01",
     };
 
@@ -119,7 +120,6 @@ app.post("/deploy/:siteId", async (c) => {
       })
     );
 
-    // **FIXED: Add script as ES module**
     formData.append(
       scriptFileName,
       new File([script], scriptFileName, {
@@ -127,7 +127,7 @@ app.post("/deploy/:siteId", async (c) => {
       })
     );
 
-    // Optional: Add platform modules (like in the example)
+    // Optional platform module
     const platformModuleContent =
       'const platformThing = "This module is provided by the platform"; export { platformThing };';
     formData.append(
@@ -139,12 +139,10 @@ app.post("/deploy/:siteId", async (c) => {
 
     console.log("Uploading to:", `${scriptsURI}/${scriptName}`);
 
-    // **FIXED: Use correct API call**
     const deploymentResponse = await fetch(`${scriptsURI}/${scriptName}`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${c.env.CLOUDFLARE_API_TOKEN}`,
-        // Don't set Content-Type for FormData - let browser set it automatically
       },
       body: formData,
     });
@@ -159,7 +157,7 @@ app.post("/deploy/:siteId", async (c) => {
     console.log("=== DEPLOYMENT SUCCEEDED ===");
     console.log("Response:", successResponse);
 
-    // **OPTIONAL: Add script tags for organization (like in example)**
+    // Add script tags for organization
     if (organizationId) {
       try {
         const tagsResponse = await fetch(`${scriptsURI}/${scriptName}/tags`, {
@@ -179,12 +177,12 @@ app.post("/deploy/:siteId", async (c) => {
       }
     }
 
-    // Store metadata in KV
+    // **UPDATED: Store validated bindings in KV**
     const workerKey = `worker:${siteInfo.domain.split(".")[0]}`;
     const workerMetadata: WorkerMetadata = {
       script,
       environment: environment || {},
-      bindings: bindings || [],
+      bindings: validatedBindings, // Store the validated bindings
       lastUpdated: new Date().toISOString(),
       deployedName: scriptName,
     };
@@ -200,9 +198,11 @@ app.post("/deploy/:siteId", async (c) => {
         data: {
           siteId,
           scriptName,
-          apiUrl, // This is the correct URL where their API is accessible
-          apiEndpoint: "/_api", // The base endpoint path
+          apiUrl,
+          apiEndpoint: "/_api",
           lastUpdated: new Date().toISOString(),
+          // **NEW: Include info about processed bindings**
+          environmentVariables: validatedBindings.length,
         },
       },
       200
@@ -221,6 +221,63 @@ app.post("/deploy/:siteId", async (c) => {
       },
       500
     );
+  }
+});
+
+app.post("/variables/:siteId", async (c) => {
+  try {
+    const { isAuthenticated, user, organizationData } = await getUserSession(c);
+    const siteId = c.req.param("siteId");
+
+    if (!isAuthenticated || (!user?.id && !organizationData?.id)) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+    const organizationId = user
+      ? user.user_metadata.orgId
+      : organizationData.id;
+
+    // Verify site access
+    let siteInfo: any;
+    if (organizationData && organizationData.id) {
+      siteInfo = await getSiteById(c, siteId);
+      if (siteInfo.organization_id !== organizationData.id) {
+        return c.json({ message: "Unauthorized" }, 401);
+      }
+    } else if (user) {
+      siteInfo = await canModifySite(c, siteId, user.id);
+    }
+
+    const { secretName, secretValue } = await c.req.json();
+
+    if(!secretName || !secretValue) {
+      return c.json({ message: "Missing secret name or value" }, 400);
+    }
+
+    const scriptName = siteInfo.domain.split(".")[0];
+    const scriptsURI = `https://api.cloudflare.com/client/v4/accounts/${c.env.CLOUDFLARE_ACCOUNT_ID}/workers/dispatch/namespaces/${c.env.DISPATCH_NAMESPACE_NAME}/scripts/${scriptName}/secrets`;
+
+    const variablesPayload = {
+      name: secretName,
+      text: secretValue,
+      type: "secret_text"
+    };
+
+    const res = await fetch(scriptsURI, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${c.env.CLOUDFLARE_API_TOKEN}`,
+      },
+      body: JSON.stringify(variablesPayload),
+    });
+
+    if(!res.ok) {
+      console.log(await res.json())
+      return c.json({ message: "Failed to create secret" }, 500);
+    }
+
+    return c.json({ message: "Secret created successfully" }, 200);
+  } catch (error) {
+    console.error("Error deploying function:", error);
   }
 });
 
@@ -395,6 +452,44 @@ app.delete("/:siteId", async (c) => {
       500
     );
   }
+});
+
+app.get("/logs/:siteId", async (c) => {
+  const { isAuthenticated, user, organizationData } = await getUserSession(c);
+  
+  if (!isAuthenticated) {
+    return c.json({ message: "Unauthorized" }, 401);
+  }
+
+  const siteId = c.req.param("siteId");
+  
+  // Get worker metadata to find the deployed name
+  const workerKey = `worker:${siteId}`;
+  const workerData = await c.env.FUNCTIONS.get(workerKey);
+  
+  if (!workerData) {
+    return c.json({ message: "Worker not found" }, 404);
+  }
+
+  const workerInfo = JSON.parse(workerData);
+  const scriptName = workerInfo.deployedName;
+
+  // Fetch logs from Cloudflare
+  const logsResponse = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${c.env.CLOUDFLARE_ACCOUNT_ID}/workers/dispatch/namespaces/${c.env.DISPATCH_NAMESPACE_NAME}/scripts/${scriptName}/logs`,
+    {
+      headers: {
+        Authorization: `Bearer ${c.env.CLOUDFLARE_API_TOKEN}`,
+      },
+    }
+  );
+
+  if (!logsResponse.ok) {
+    return c.json({ message: "Failed to fetch logs" }, 500);
+  }
+
+  const logs = await logsResponse.json() as { result: any[] };
+  return c.json(logs);
 });
 
 export default app;
