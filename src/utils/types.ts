@@ -181,3 +181,39 @@ export interface WorkerUpload {
   environment?: Record<string, any>;
   bindings?: EnvironmentVariableBinding[];
 }
+
+export interface WorkerUsageResult {
+  scriptName: string;
+  totalRequests: number;
+  totalCpuTime: number; // in microseconds
+  dateRange: {
+    start: string;
+    end: string;
+  };
+}
+
+export interface GraphQLResponse {
+  data: {
+    viewer: {
+      accounts: Array<{
+        workersInvocationsAdaptive: Array<{
+          dimensions: {
+            datetime: string;
+            scriptName: string;
+            status: string;
+          };
+          quantiles: {
+            cpuTimeP50: number;
+            cpuTimeP99: number;
+          };
+          sum: {
+            errors: number;
+            requests: number;
+            subrequests: number;
+          };
+        }>;
+      }>;
+    };
+  };
+  errors: any;
+}
