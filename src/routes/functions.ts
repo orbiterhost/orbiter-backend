@@ -462,9 +462,19 @@ app.get("/logs/:siteId", async (c) => {
   }
 
   const siteId = c.req.param("siteId");
+  // Verify site access
+  let siteInfo: any;
+  if (organizationData && organizationData.id) {
+    siteInfo = await getSiteById(c, siteId);
+    if (siteInfo.organization_id !== organizationData.id) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+  } else if (user) {
+    siteInfo = await canModifySite(c, siteId, user.id);
+  }
   
   // Get worker metadata to find the deployed name
-  const workerKey = `worker:${siteId}`;
+  const workerKey = `worker:${siteInfo.domain.split(".")[0]}`;
   const workerData = await c.env.FUNCTIONS.get(workerKey);
   
   if (!workerData) {
