@@ -35,6 +35,7 @@ app.route("/farcaster", farcaster);
 app.route("/functions", functions);
 
 app.get("/health", async (c: Context<{ Bindings: Bindings }>) => {
+  console.log(c.env.MY_MESSAGE);
   return c.json({ status: "orbiting" }, 200);
 });
 

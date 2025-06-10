@@ -1,6 +1,10 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { Bindings, EnvironmentVariableBinding, WorkerUpload } from "../utils/types";
+import {
+  Bindings,
+  EnvironmentVariableBinding,
+  WorkerUpload,
+} from "../utils/types";
 import { getUserSession } from "../middleware/auth";
 import { canCreateFunction, canModifySite } from "../middleware/accessControls";
 import { getSiteById } from "../utils/db/sites";
@@ -37,26 +41,28 @@ app.post("/deploy/:siteId", async (c) => {
 
     let validatedBindings: EnvironmentVariableBinding[] = [];
     if (bindings && Array.isArray(bindings)) {
-      validatedBindings = bindings.filter(binding => {
+      validatedBindings = bindings.filter((binding) => {
         // Only allow secret_text bindings (environment variables)
         if (binding.type !== "secret_text") {
           console.warn(`Rejected binding type: ${binding.type}`);
           return false;
         }
-        
+
         // Validate required fields
         if (!binding.name || typeof binding.name !== "string") {
           console.warn("Rejected binding: missing or invalid name");
           return false;
         }
-        
+
         if (!binding.text || typeof binding.text !== "string") {
           console.warn("Rejected binding: missing or invalid text value");
           return false;
         }
 
         if (!/^[A-Z_][A-Z0-9_]*$/i.test(binding.name)) {
-          console.warn(`Invalid env var name format: ${binding.name}, env vars must contains only letters, numbers, or underscores`);
+          console.warn(
+            `Invalid env var name format: ${binding.name}, env vars must contains only letters, numbers, or underscores`
+          );
           return false;
         }
 
@@ -64,8 +70,10 @@ app.post("/deploy/:siteId", async (c) => {
       });
 
       if (validatedBindings.length > 0) {
-        console.log(`Allowing ${validatedBindings.length} environment variable bindings:`);
-        validatedBindings.forEach(binding => {
+        console.log(
+          `Allowing ${validatedBindings.length} environment variable bindings:`
+        );
+        validatedBindings.forEach((binding) => {
           console.log(`  - ${binding.name} (${binding.text.length} chars)`);
         });
       }
@@ -249,7 +257,7 @@ app.post("/variables/:siteId", async (c) => {
 
     const { secretName, secretValue } = await c.req.json();
 
-    if(!secretName || !secretValue) {
+    if (!secretName || !secretValue) {
       return c.json({ message: "Missing secret name or value" }, 400);
     }
 
@@ -259,7 +267,7 @@ app.post("/variables/:siteId", async (c) => {
     const variablesPayload = {
       name: secretName,
       text: secretValue,
-      type: "secret_text"
+      type: "secret_text",
     };
 
     const res = await fetch(scriptsURI, {
@@ -270,12 +278,112 @@ app.post("/variables/:siteId", async (c) => {
       body: JSON.stringify(variablesPayload),
     });
 
-    if(!res.ok) {
-      console.log(await res.json())
+    if (!res.ok) {
+      console.log(await res.json());
       return c.json({ message: "Failed to create secret" }, 500);
     }
 
     return c.json({ message: "Secret created successfully" }, 200);
+  } catch (error) {
+    console.error("Error deploying function:", error);
+  }
+});
+
+app.get("/variables/:siteId", async (c) => {
+  try {
+    const { isAuthenticated, user, organizationData } = await getUserSession(c);
+    const siteId = c.req.param("siteId");
+
+    if (!isAuthenticated || (!user?.id && !organizationData?.id)) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    let siteInfo: any;
+    if (organizationData && organizationData.id) {
+      siteInfo = await getSiteById(c, siteId);
+      if (siteInfo.organization_id !== organizationData.id) {
+        return c.json({ message: "Unauthorized" }, 401);
+      }
+    } else if (user) {
+      siteInfo = await canModifySite(c, siteId, user.id);
+    }
+
+    const organizationId = user
+      ? user.user_metadata.orgId
+      : organizationData.id;
+
+    const scriptName = siteInfo.domain.split(".")[0];
+
+    const scriptsURI = `https://api.cloudflare.com/client/v4/accounts/${c.env.CLOUDFLARE_ACCOUNT_ID}/workers/dispatch/namespaces/${c.env.DISPATCH_NAMESPACE_NAME}/scripts/${scriptName}/secrets`;
+
+    const res = await fetch(scriptsURI, {
+      headers: {
+        Authorization: `Bearer ${c.env.CLOUDFLARE_API_TOKEN}`,
+      },
+    });
+
+    if (!res.ok) {
+      console.log(await res.json());
+      return c.json({ message: "Failed to fetch secrets" }, 500);
+    }
+
+    const secrets: any = await res.json();
+
+    const secretsData = secrets.result.map((secret: any) => ({
+      name: secret.name,
+      value: secret.text,
+    }));
+
+    return c.json(secretsData, 200);
+  } catch (error) {
+    console.error("Error deploying function:", error);
+  }
+});
+
+app.delete("/variables/:siteId/:secretName", async (c) => {
+  try {
+    const { isAuthenticated, user, organizationData } = await getUserSession(c);
+    const siteId = c.req.param("siteId");
+    const secretName = c.req.param("secretName");
+
+    if (!isAuthenticated || (!user?.id && !organizationData?.id)) {
+      return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    const organizationId = user
+      ? user.user_metadata.orgId
+      : organizationData.id;
+
+    // Verify site access
+    let siteInfo: any;
+    if (organizationData && organizationData.id) {
+      siteInfo = await getSiteById(c, siteId);
+      if (siteInfo.organization_id !== organizationData.id) {
+        return c.json({ message: "Unauthorized" }, 401);
+      }
+    } else if (user) {
+      siteInfo = await canModifySite(c, siteId, user.id);
+    }
+
+    const scriptName = siteInfo.domain.split(".")[0];
+    const scriptsURI = `https://api.cloudflare.com/client/v4/accounts/${c.env.CLOUDFLARE_ACCOUNT_ID}/workers/dispatch/namespaces/${c.env.DISPATCH_NAMESPACE_NAME}/scripts/${scriptName}/secrets`;
+
+    const res = await fetch(
+      `${scriptsURI}/${scriptName}/secrets/${secretName}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${c.env.CLOUDFLARE_API_TOKEN}`,
+        },
+      }
+    );
+
+    if (!res.ok) {
+      console.log(await res.json());
+      return c.json({ message: "Failed to delete secret" }, 500);
+    }
+
+    return c.json({ message: "Secret deleted successfully" }, 200);
   } catch (error) {
     console.error("Error deploying function:", error);
   }
@@ -335,7 +443,7 @@ app.get("/:siteId", async (c) => {
 
     const workerData: any = await workerResponse.json();
 
-    if(workerData.result.script === null) {
+    if (workerData.result.script === null) {
       return c.json({ message: "No API function deployed for this site" }, 404);
     }
 
@@ -416,19 +524,16 @@ app.delete("/:siteId", async (c) => {
     // Get the deployed script name
     const workerKey = `worker:${scriptName}`;
     const metadata = await c.env.FUNCTIONS.get(workerKey);
-    const parsedMetadata = metadata ? JSON.parse(metadata) : {};    
+    const parsedMetadata = metadata ? JSON.parse(metadata) : {};
 
     const scriptsURI = `https://api.cloudflare.com/client/v4/accounts/${c.env.CLOUDFLARE_ACCOUNT_ID}/workers/dispatch/namespaces/${c.env.DISPATCH_NAMESPACE_NAME}/scripts`;
 
-    const deleteResponse = await fetch(
-      `${scriptsURI}/${scriptName}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${c.env.CLOUDFLARE_API_TOKEN}`,
-        },
-      }
-    );
+    const deleteResponse = await fetch(`${scriptsURI}/${scriptName}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${c.env.CLOUDFLARE_API_TOKEN}`,
+      },
+    });
 
     if (!deleteResponse.ok && deleteResponse.status !== 404) {
       const errorText = await deleteResponse.text();
@@ -446,60 +551,14 @@ app.delete("/:siteId", async (c) => {
         error: {
           code: "delete_worker_failed",
           message:
-            error instanceof Error ? error.message : "Failed to delete function",
+            error instanceof Error
+              ? error.message
+              : "Failed to delete function",
         },
       },
       500
     );
   }
-});
-
-app.get("/logs/:siteId", async (c) => {
-  const { isAuthenticated, user, organizationData } = await getUserSession(c);
-  
-  if (!isAuthenticated) {
-    return c.json({ message: "Unauthorized" }, 401);
-  }
-
-  const siteId = c.req.param("siteId");
-  // Verify site access
-  let siteInfo: any;
-  if (organizationData && organizationData.id) {
-    siteInfo = await getSiteById(c, siteId);
-    if (siteInfo.organization_id !== organizationData.id) {
-      return c.json({ message: "Unauthorized" }, 401);
-    }
-  } else if (user) {
-    siteInfo = await canModifySite(c, siteId, user.id);
-  }
-  
-  // Get worker metadata to find the deployed name
-  const workerKey = `worker:${siteInfo.domain.split(".")[0]}`;
-  const workerData = await c.env.FUNCTIONS.get(workerKey);
-  
-  if (!workerData) {
-    return c.json({ message: "Worker not found" }, 404);
-  }
-
-  const workerInfo = JSON.parse(workerData);
-  const scriptName = workerInfo.deployedName;
-
-  // Fetch logs from Cloudflare
-  const logsResponse = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${c.env.CLOUDFLARE_ACCOUNT_ID}/workers/dispatch/namespaces/${c.env.DISPATCH_NAMESPACE_NAME}/scripts/${scriptName}/logs`,
-    {
-      headers: {
-        Authorization: `Bearer ${c.env.CLOUDFLARE_API_TOKEN}`,
-      },
-    }
-  );
-
-  if (!logsResponse.ok) {
-    return c.json({ message: "Failed to fetch logs" }, 500);
-  }
-
-  const logs = await logsResponse.json() as { result: any[] };
-  return c.json(logs);
 });
 
 export default app;

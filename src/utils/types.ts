@@ -51,6 +51,7 @@ export type Bindings = {
   WORKERS_SUBDOMAIN: string;
   CLOUDFLARE_WORKERS_TOKEN: string;
   DISPATCH_NAMESPACE_NAME: string;
+  MY_MESSAGE: string;
 };
 
 export type Organization = {
