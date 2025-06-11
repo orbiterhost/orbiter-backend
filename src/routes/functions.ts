@@ -61,7 +61,7 @@ app.post("/deploy/:siteId", async (c) => {
 
         if (!/^[A-Z_][A-Z0-9_]*$/i.test(binding.name)) {
           console.warn(
-            `Invalid env var name format: ${binding.name}, env vars must contains only letters, numbers, or underscores`
+            `Invalid env var name format: ${binding.name}, env vars must contains only letters, numbers, or underscores`,
           );
           return false;
         }
@@ -71,7 +71,7 @@ app.post("/deploy/:siteId", async (c) => {
 
       if (validatedBindings.length > 0) {
         console.log(
-          `Allowing ${validatedBindings.length} environment variable bindings:`
+          `Allowing ${validatedBindings.length} environment variable bindings:`,
         );
         validatedBindings.forEach((binding) => {
           console.log(`  - ${binding.name} (${binding.text.length} chars)`);
@@ -97,7 +97,7 @@ app.post("/deploy/:siteId", async (c) => {
     if (!canCreateFunction(c, organizationId)) {
       return c.json(
         { message: "You must be on a paid plan to create functions" },
-        401
+        401,
       );
     }
 
@@ -125,14 +125,14 @@ app.post("/deploy/:siteId", async (c) => {
       "metadata",
       new File([JSON.stringify(metadata)], "metadata.json", {
         type: "application/json",
-      })
+      }),
     );
 
     formData.append(
       scriptFileName,
       new File([script], scriptFileName, {
         type: "application/javascript+module",
-      })
+      }),
     );
 
     // Optional platform module
@@ -142,7 +142,7 @@ app.post("/deploy/:siteId", async (c) => {
       "platform_module.mjs",
       new File([platformModuleContent], "platform_module.mjs", {
         type: "application/javascript+module",
-      })
+      }),
     );
 
     console.log("Uploading to:", `${scriptsURI}/${scriptName}`);
@@ -198,7 +198,7 @@ app.post("/deploy/:siteId", async (c) => {
     await c.env.FUNCTIONS.put(workerKey, JSON.stringify(workerMetadata));
 
     const siteHostname = siteInfo.custom_domain || siteInfo.domain;
-    const apiUrl = `https://${siteHostname}/_api`;
+    const apiUrl = `https://${siteHostname}/api`;
 
     return c.json(
       {
@@ -207,13 +207,13 @@ app.post("/deploy/:siteId", async (c) => {
           siteId,
           scriptName,
           apiUrl,
-          apiEndpoint: "/_api",
+          apiEndpoint: "/api",
           lastUpdated: new Date().toISOString(),
           // **NEW: Include info about processed bindings**
           environmentVariables: validatedBindings.length,
         },
       },
-      200
+      200,
     );
   } catch (error) {
     console.error("=== WORKER DEPLOYMENT ERROR ===");
@@ -227,7 +227,7 @@ app.post("/deploy/:siteId", async (c) => {
             error instanceof Error ? error.message : "Failed to deploy worker",
         },
       },
-      500
+      500,
     );
   }
 });
@@ -375,7 +375,7 @@ app.delete("/variables/:siteId/:secretName", async (c) => {
         headers: {
           Authorization: `Bearer ${c.env.CLOUDFLARE_API_TOKEN}`,
         },
-      }
+      },
     );
 
     if (!res.ok) {
@@ -432,7 +432,7 @@ app.get("/:siteId", async (c) => {
               message: "No API function deployed for this site",
             },
           },
-          200
+          200,
         );
       }
 
@@ -452,7 +452,7 @@ app.get("/:siteId", async (c) => {
     const parsedMetadata = metadata ? JSON.parse(metadata) : {};
 
     const siteHostname = siteInfo.custom_domain || siteInfo.domain;
-    const apiUrl = `https://${siteHostname}/_api`;
+    const apiUrl = `https://${siteHostname}/api`;
 
     const workerDetail = {
       id: workerData.result.id,
@@ -464,7 +464,7 @@ app.get("/:siteId", async (c) => {
       size: workerData.result.size,
       isDeployed: true,
       apiUrl: apiUrl,
-      apiEndpoint: "/_api",
+      apiEndpoint: "/api",
       siteId: siteId,
       siteDomain: siteInfo.domain,
       customDomain: siteInfo.custom_domain,
@@ -480,7 +480,7 @@ app.get("/:siteId", async (c) => {
           scriptName,
         },
       },
-      200
+      200,
     );
   } catch (error) {
     console.error("Error fetching worker:", error);
@@ -492,7 +492,7 @@ app.get("/:siteId", async (c) => {
             error instanceof Error ? error.message : "Failed to fetch worker",
         },
       },
-      500
+      500,
     );
   }
 });
@@ -556,7 +556,7 @@ app.delete("/:siteId", async (c) => {
               : "Failed to delete function",
         },
       },
-      500
+      500,
     );
   }
 });
