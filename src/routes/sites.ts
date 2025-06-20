@@ -180,7 +180,6 @@ app.post("/", async (c) => {
 
     //  Need to get plan details to see if _redirects supported
     const plan = (await c.env.SITE_PLANS.get(orgId)) || "free";
-    console.log({ plan });
     if (plan !== "free") {
       try {
         const redirectsFile = await getRedirectsFile(c, cid);
