@@ -198,7 +198,7 @@ app.post("/deploy/:siteId", async (c) => {
     await c.env.FUNCTIONS.put(workerKey, JSON.stringify(workerMetadata));
 
     const siteHostname = siteInfo.custom_domain || siteInfo.domain;
-    const apiUrl = `https://${siteHostname}/api`;
+    const apiUrl = `https://${siteHostname}/api/`;
 
     return c.json(
       {
@@ -207,7 +207,7 @@ app.post("/deploy/:siteId", async (c) => {
           siteId,
           scriptName,
           apiUrl,
-          apiEndpoint: "/api",
+          apiEndpoint: "/api/",
           lastUpdated: new Date().toISOString(),
           // **NEW: Include info about processed bindings**
           environmentVariables: validatedBindings.length,
