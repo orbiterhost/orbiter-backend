@@ -94,7 +94,9 @@ app.post("/deploy/:siteId", async (c) => {
       siteInfo = await canModifySite(c, siteId, user.id);
     }
 
-    if (!canCreateFunction(c, organizationId)) {
+    const canCreate = await canCreateFunction(c, organizationId);
+
+    if (!canCreate) {
       return c.json(
         { message: "You must be on a paid plan to create functions" },
         401,

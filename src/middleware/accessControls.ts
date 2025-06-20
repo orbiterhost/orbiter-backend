@@ -192,6 +192,7 @@ export const canMemberTakeAction = (role: string, action: string) => {
 export const canCreateFunction = async (c: Context, orgId: string) => {
   try {
     const plan = (await c.env.SITE_PLANS.get(orgId)) || "free";
+    
     if(plan !== "free") {
       return true;
     }
