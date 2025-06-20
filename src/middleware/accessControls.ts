@@ -24,7 +24,7 @@ const ACTION_ROLE_MAPPING: any = {
   delete_api_key: ["ADMIN", "OWNER"],
 };
 
-type PlanType = "free" | "launch" | "orbit";
+export type PlanType = "free" | "launch" | "orbit";
 
 export const SITE_LIMITS: Record<PlanType, number> = {
   free: 2,

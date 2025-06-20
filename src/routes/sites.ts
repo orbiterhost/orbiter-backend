@@ -7,6 +7,8 @@ import {
   canAddCustomDomain,
   canCreateSite,
   canModifySite,
+  SITE_LIMITS,
+  PlanType,
 } from "../middleware/accessControls";
 import {
   checkSubdomainDNSRecord,
@@ -40,6 +42,7 @@ import {
 } from "../utils/db/sites";
 import { getUserById } from "../utils/db/users";
 import { parseRedirectsFile } from "../utils/redirects";
+import { getSiteCountForOrganization } from "../utils/db/organizations";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -58,7 +61,7 @@ app.get("/:identifier/versions", async (c) => {
 
     const offset = c.req.query("offset");
 
-    const all = c.req.query("all")
+    const all = c.req.query("all");
 
     // Helper function to check if string is UUID
     const isUUID = (str: string) => {
@@ -107,8 +110,12 @@ app.get("/:identifier/versions", async (c) => {
     return c.json(
       {
         data: versions,
-        nextOffset: all === "true" ? null :
-          versions.length === 10 ? parseInt(offset || "0", 10) + 10 : null,
+        nextOffset:
+          all === "true"
+            ? null
+            : versions.length === 10
+            ? parseInt(offset || "0", 10) + 10
+            : null,
       },
       200
     );
@@ -173,17 +180,36 @@ app.post("/", async (c) => {
 
     //  Need to get plan details to see if _redirects supported
     const plan = (await c.env.SITE_PLANS.get(orgId)) || "free";
-    if(plan !== "free") {
+    console.log({ plan });
+    if (plan !== "free") {
       try {
         const redirectsFile = await getRedirectsFile(c, cid);
-        if(redirectsFile) {
+        if (redirectsFile) {
           const redirectsJSON = parseRedirectsFile(redirectsFile as string);
-          await c.env.REDIRECTS.put(subdomain.toLowerCase(), JSON.stringify(redirectsJSON));
-        } 
+          await c.env.REDIRECTS.put(
+            subdomain.toLowerCase(),
+            JSON.stringify(redirectsJSON)
+          );
+        }
       } catch (error) {
         //  Don't throw
         console.log("Error with redirects: ", error);
-      }      
+      }
+    } else {
+      const siteCount: number | null = await getSiteCountForOrganization(
+        c,
+        orgId
+      );
+
+      if (siteCount && siteCount >= SITE_LIMITS[plan as PlanType]) {
+        return c.json(
+          {
+            message:
+              "You've hit your site limit and will need to upgrade to add more",
+          },
+          401
+        );
+      }
     }
 
     if (organizationData && organizationData.id !== orgId) {
@@ -217,12 +243,12 @@ app.post("/", async (c) => {
     }
 
     await c.env.CONTRACT_QUEUE.send({
-      type: 'create_contract',
+      type: "create_contract",
       cid: cid,
       domain: subdomain.toLowerCase(),
       userId: user ? user.id : organizationData?.orgOwner,
       orgId: orgId,
-      retryCount: 3
+      retryCount: 3,
     });
 
     const html: any = await getSiteData(c, cid);
@@ -289,14 +315,17 @@ app.put("/:siteId", async (c) => {
 
     //  Need to get plan details to see if _redirects supported
     const plan = (await c.env.SITE_PLANS.get(organization_id)) || "free";
-    
-    if(plan !== "free") {      
+
+    if (plan !== "free") {
       const redirectsFile = await getRedirectsFile(c, cid);
-      console.log("Checking for redirects file: ", redirectsFile)
-      if(redirectsFile) {
+      console.log("Checking for redirects file: ", redirectsFile);
+      if (redirectsFile) {
         const redirectsJSON = await parseRedirectsFile(redirectsFile as string);
         console.log("Parsed redirects: ", redirectsJSON);
-        await c.env.REDIRECTS.put(domainPrefix.toLowerCase(), JSON.stringify(redirectsJSON));
+        await c.env.REDIRECTS.put(
+          domainPrefix.toLowerCase(),
+          JSON.stringify(redirectsJSON)
+        );
       }
     }
 
@@ -304,12 +333,12 @@ app.put("/:siteId", async (c) => {
 
     if (site_contract) {
       await c.env.CONTRACT_QUEUE.send({
-        type: 'update_contract',
+        type: "update_contract",
         cid: cid,
         contractAddress: site_contract as `0x${string}`,
         siteId: siteId,
         userId: user ? user.id : organizationData?.orgOwner,
-        orgId: organization_id
+        orgId: organization_id,
       });
     }
 
