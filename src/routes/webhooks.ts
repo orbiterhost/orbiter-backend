@@ -8,7 +8,8 @@ import {
 import { postSubscriptionChanges } from "../utils/notifications";
 import {
   addStripeCustomerIdToOrgTable,
-  getOrgInfoByStripeCustomer,  
+  getOrganizationById,
+  getOrgInfoByStripeCustomer,
 } from "../utils/db/organizations";
 
 import CryptoJS from "crypto-js";
@@ -91,7 +92,7 @@ app.post("/loop", async (c) => {
           externalCustomerId
         );
 
-        if (subscriptions.length > 0) {          
+        if (subscriptions.length > 0) {
           // Update KV
           await c.env.SITE_PLANS.put(orgId, item.toLowerCase());
           //  Add customer ID to organizations table
@@ -135,7 +136,7 @@ app.post("/stripe", async (c) => {
       [c.env.ORBIT_MONTHLY_PRICE_ID]: "orbit",
       [c.env.LAUNCH_MONTHLY_PRICE_ID]: "launch",
       [c.env.LAUNCH_YEARLY_PRICE_ID]: "launch", // annual
-      [c.env.ORBIT_YEARLY_PRICE_ID]: "orbit" // annual
+      [c.env.ORBIT_YEARLY_PRICE_ID]: "orbit", // annual
     };
     const payload = await c.req.text();
     const sig = c.req.header("stripe-signature");
@@ -144,6 +145,8 @@ app.post("/stripe", async (c) => {
 
     const session = event.data.object;
     const customerId = session.customer;
+
+    const orgInfo = await getOrgInfoByStripeCustomer(c, customerId);
 
     switch (event.type) {
       case "checkout.session.completed":
@@ -165,33 +168,37 @@ app.post("/stripe", async (c) => {
           await c.env.SITE_PLANS.put(orgId, PLAN_MAPPING[priceId]);
           //  Add customer ID to organizations table
           await addStripeCustomerIdToOrgTable(c, orgId, customerId);
-          const message = `${PLAN_MAPPING[priceId]} subscription created by org: ${orgId}`;
+          const message = `${PLAN_MAPPING[priceId]} subscription created by org: ${orgInfo.name} - ${orgId}`;
           await postSubscriptionChanges(c, message);
         } else {
           console.log("No subscriptions found...");
         }
         break;
-      case "customer.subscription.updated":
-        // Fires when a subscription is changed to a different plan
-        // Also fires for other subscription updates like payment method changes
-        const orgInfo = await getOrgInfoByStripeCustomer(c, customerId);
+      case "customer.subscription.updated":        
         const updatedSubscription = event.data.object;
         const previousAttributes = event.data.previous_attributes;
-
+        console.log({updatedSubscription})
+        console.log({previousAttributes});
         // Check if the price/plan changed
         if (previousAttributes.items) {
-          // Plan was changed
+          const oldPriceId = previousAttributes.items.data[0].price.id;
           const newPriceId = updatedSubscription.items.data[0].price.id;
-          if (PLAN_MAPPING[newPriceId] === "orbit") {
-            //  Upgrade
-            const message = `Subscription upgraded to Orbit by org: ${orgInfo.id}`;
-            await postSubscriptionChanges(c, message);
-          } else {
-            //  Downgrade
-            const message = `Subscription downgraded by org: ${orgInfo.id}`;
-            await postSubscriptionChanges(c, message);
+
+          const oldPlan = PLAN_MAPPING[oldPriceId];
+          const newPlan = PLAN_MAPPING[newPriceId];
+          console.log({oldPlan, newPlan})
+          // Only notify if the actual plan tier changed (not just billing frequency)
+          if (oldPlan !== newPlan) {
+            if (newPlan === "orbit" && oldPlan === "launch") {
+              const message = `Subscription upgraded to Orbit by org: ${orgInfo.name} - ${orgInfo.id}`;
+              await postSubscriptionChanges(c, message);
+            } else if (newPlan === "launch" && oldPlan === "orbit") {
+              const message = `Subscription downgraded to Launch by org: ${orgInfo.name} - ${orgInfo.id}`;
+              await postSubscriptionChanges(c, message);
+            }
           }
-          // Update your KV store with new plan info
+
+          // Update KV store with new plan info
           await c.env.SITE_PLANS.put(orgInfo.id, PLAN_MAPPING[newPriceId]);
         }
         break;
@@ -204,7 +211,7 @@ app.post("/stripe", async (c) => {
         // Fires when a subscription is cancelled
         // const canceledSubscription = event.data.object;
         if (organizationInfo && organizationInfo.id) {
-          const message = `Subscription cancelled by org: ${organizationInfo.id}`;
+          const message = `Subscription cancelled by org: ${orgInfo.name} - ${organizationInfo.id}`;
           await postSubscriptionChanges(c, message);
           await c.env.SITE_PLANS.delete(organizationInfo.id);
         }
@@ -226,25 +233,25 @@ app.post("/stripe", async (c) => {
 app.post("/supabase", async (c) => {
   try {
     const validRequest = await verifySupabaseWebhookSecret(c);
-    if(!validRequest) {
+    if (!validRequest) {
       return c.json({ message: "Unauthorized" }, 401);
     }
 
     const body = await c.req.json();
-    
-    switch(body.type) {
+
+    switch (body.type) {
       case "INSERT":
-      default: 
+      default:
         //  Check for the table
-        if(body.table === "users") {
+        if (body.table === "users") {
           const { record } = body;
           const email = record.email;
 
           //  Post message to slack
-          const message = `New free sign up from: ${email}`
+          const message = `New free sign up from: ${email}`;
           await postSubscriptionChanges(c, message);
         }
-      break;
+        break;
     }
 
     return c.json({ message: "Success" }, 200);
@@ -252,6 +259,6 @@ app.post("/supabase", async (c) => {
     console.log(error);
     return c.json({ message: "Server error" }, 500);
   }
-})
+});
 
 export default app;
