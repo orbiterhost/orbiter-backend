@@ -1,21 +1,66 @@
-import { Context } from "hono";
-import { GraphQLResponse, WorkerUsageResult } from "./types";
+interface WorkerInvocation {
+  quantiles: {
+    cpuTimeP50: number;
+  };
+  sum: {
+    requests: number;
+  };
+}
 
-export async function getWorkerUsage(
-  c: Context,
+interface AnalyticsResponse {
+  data: {
+    viewer: {
+      accounts: Array<{
+        workersInvocationsAdaptive: WorkerInvocation[];
+      }>;
+    };
+  };
+}
+
+function aggregateUsage(data: AnalyticsResponse) {
+  const invocations =
+    data.data.viewer.accounts[0].workersInvocationsAdaptive;
+
+  let totalRequests = 0;
+  let totalCpuTime = 0;
+
+  invocations.forEach((invocation) => {
+    const requests = invocation.sum.requests;
+    const cpuTimeP50 = invocation.quantiles.cpuTimeP50;
+
+    totalRequests += requests;
+    totalCpuTime += requests * cpuTimeP50;
+  });
+
+  return {
+    totalRequests,
+    totalCpuTime,
+  };
+}
+
+export const getFunctionUsage = async (
+  accountId: string,
+  apiToken: string,
+  dispatchNamespace: string,
   scriptName: string,
-  dateStart: string, // ISO 8601 format: "2025-06-09T00:00:00.000Z"
-  dateEnd: string // ISO 8601 format: "2025-06-10T23:59:59.000Z"
-): Promise<WorkerUsageResult> {
-  const query = `
-      query GetWorkersAnalytics($accountTag: String!, $datetimeStart: String!, $datetimeEnd: String!, $scriptName: String!) {
+  startDate: string,
+  endDate: string
+) => {
+  try {
+    // First, let's try querying by dispatch namespace only
+    const requestBody = {
+      query: `query GetWorkersAnalytics($accountTag: string, $datetimeStart: string, $datetimeEnd: string, $scriptName: string) {
         viewer {
           accounts(filter: {accountTag: $accountTag}) {
-            workersInvocationsAdaptive(limit: 1000, filter: {
-              scriptName: $scriptName,
-              datetime_geq: $datetimeStart,
-              datetime_leq: $datetimeEnd
-            }) {
+            workersInvocations(
+              limit: 1000,
+              filter: {
+                scriptName: $scriptName,
+                date_geq: $datetimeStart,
+                date_leq: $datetimeEnd
+              },
+              orderBy: [date_ASC]
+            ) {
               sum {
                 subrequests
                 requests
@@ -26,70 +71,105 @@ export async function getWorkerUsage(
                 cpuTimeP99
               }
               dimensions {
-                datetime
+                date
                 scriptName
+                dispatchNamespaceName
                 status
               }
             }
           }
         }
-      }
-    `;
-
-  const response = await fetch("https://api.cloudflare.com/client/v4/graphql", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${c.env.CLOUDFLARE_API_TOKEN}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      query,
+      }`,
       variables: {
-        accountTag: c.env.CLOUDFLARE_ACCOUNT_ID,
-        datetimeStart: dateStart,
-        datetimeEnd: dateEnd,
+        accountTag: accountId,
+        datetimeStart: startDate,
+        datetimeEnd: endDate,
         scriptName: scriptName,
       },
-    }),
-  });
+    };
 
-  if (!response.ok) {
-    throw new Error(
-      `GraphQL API request failed: ${response.status} ${response.statusText}`
-    );
+    const res = await fetch(`https://api.cloudflare.com/client/v4/graphql`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const data = await res.json();
+
+    return data;
+  } catch (error) {
+    console.log(error);
+    throw error;
   }
+};
 
-  const data: GraphQLResponse = await response.json();
+// Alternative version - query without dispatch namespace filter
+export const getFunctionUsageByScript = async (
+  accountId: string,
+  apiToken: string,
+  scriptName: string,
+  startDate: string,
+  endDate: string
+) => {
+  try {
+    const requestBody = {
+      query: `query GetWorkersAnalytics($accountTag: string, $datetimeStart: string, $datetimeEnd: string, $scriptName: string) {
+        viewer {
+          accounts(filter: {accountTag: $accountTag}) {
+            workersInvocationsAdaptive(
+              limit: 1000,
+              filter: {
+                scriptName: $scriptName,
+                datetime_geq: $datetimeStart,
+                datetime_leq: $datetimeEnd
+              },
+              orderBy: [datetime_ASC]
+            ) {
+              sum {
+                subrequests
+                requests
+                errors
+              }
+              quantiles {
+                cpuTimeP50
+                cpuTimeP99
+              }
+              dimensions{
+                datetime
+                scriptName
+                dispatchNamespaceName
+                status
+              }
+            }
+          }
+        }
+      }`,
+      variables: {
+        accountTag: accountId,
+        datetimeStart: startDate,
+        datetimeEnd: endDate,
+        scriptName: scriptName,
+      },
+    };
 
-  if (data.errors) {
-    throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+    const res = await fetch(`https://api.cloudflare.com/client/v4/graphql`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const data: AnalyticsResponse = await res.json();
+
+    const formatted = await aggregateUsage(data);
+    return formatted;
+  } catch (error) {
+    console.log(error);
+    throw error;
   }
-
-  // Aggregate the data
-  let totalRequests = 0;
-  let totalCpuTime = 0;
-
-  const invocations =
-    data.data.viewer.accounts[0]?.workersInvocationsAdaptive || [];
-
-  for (const invocation of invocations) {
-    // Add up all requests
-    totalRequests += invocation.sum.requests;
-
-    // For CPU time, we'll use the P50 quantile multiplied by the number of requests
-    // This gives us an approximation of total CPU time used
-    // Note: This is an approximation since we don't have exact per-request CPU times
-    totalCpuTime += invocation.quantiles.cpuTimeP50 * invocation.sum.requests;
-  }
-
-  return {
-    scriptName,
-    totalRequests,
-    totalCpuTime,
-    dateRange: {
-      start: dateStart,
-      end: dateEnd,
-    },
-  };
-}
+};

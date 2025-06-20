@@ -13,6 +13,7 @@ import {
 
 import CryptoJS from "crypto-js";
 import { verifySupabaseWebhookSecret } from "../middleware/auth";
+import { getFunctionUsage, getFunctionUsageByScript } from "../utils/functions";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -113,6 +114,20 @@ stripeCustomer: ${externalCustomerId}`;
     return c.json({ message: "Server error" }, 500);
   }
 });
+
+// app.post("/test-function-usage", async (c) => {
+//   // const usage = await getWorkerUsage(c, "marketing", "2025-05-17T00:00:00.000Z", "2025-06-16T23:59:59.000Z");
+//   const usage = await getFunctionUsageByScript(
+//     c.env.CLOUDFLARE_ACCOUNT_ID,
+//     c.env.CLOUDFLARE_API_TOKEN,
+//     // 'staging-functions', // namespace name
+//     'marketing', // script name within the namespace
+//     new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+//     new Date().toISOString()
+//   );
+
+//   return c.json({ usage }, 200);
+// });
 
 app.post("/stripe", async (c) => {
   try {

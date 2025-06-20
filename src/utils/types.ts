@@ -184,8 +184,12 @@ export interface WorkerUpload {
 
 export interface WorkerUsageResult {
   scriptName: string;
+  host?: string;
   totalRequests: number;
+  totalSubrequests?: number;
+  totalErrors?: number;
   totalCpuTime: number; // in microseconds
+  dataPointsRetrieved?: number;
   dateRange: {
     start: string;
     end: string;
@@ -196,11 +200,12 @@ export interface GraphQLResponse {
   data: {
     viewer: {
       accounts: Array<{
-        workersInvocationsAdaptive: Array<{
+        workersInvocationsAdaptive?: Array<{
           dimensions: {
             datetime: string;
             scriptName: string;
             status: string;
+            clientRequestHTTPHost?: string;
           };
           quantiles: {
             cpuTimeP50: number;
@@ -212,8 +217,31 @@ export interface GraphQLResponse {
             subrequests: number;
           };
         }>;
+        httpRequestsAdaptiveGroups?: Array<{
+          count: number;
+          sum: {
+            requests: number;
+            bytes: number;
+            threats: number;
+          };
+          avg: {
+            sampleInterval: number;
+          };
+          dimensions: {
+            datetime: string;
+            clientRequestHTTPHost: string;
+            edgeResponseStatus: number;
+          };
+        }>;
       }>;
     };
   };
-  errors: any;
+  errors?: Array<{
+    message: string;
+    locations?: Array<{
+      line: number;
+      column: number;
+    }>;
+    path?: string[];
+  }>;
 }
