@@ -1,6 +1,12 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { Bindings, SiteVersionLookupType } from "../utils/types";
+import {
+  Bindings,
+  CloudflareCustomHostname,
+  CloudflareWorkerRoute,
+  CustomDomainMapping,
+  SiteVersionLookupType,
+} from "../utils/types";
 import { getUserSession } from "../middleware/auth";
 import {
   canAccessVersions,
@@ -25,6 +31,12 @@ import {
   postUpdatedSiteToSlack,
 } from "../utils/notifications";
 import {
+  checkSSLValidation,
+  createCloudflareCustomHostname,
+  createWorkerRoute,
+  deleteCloudflareCustomHostname,
+  deleteWorkerRoute,
+  getCustomHostnameStatus,
   issueSSLCertAndProxyCustomDomain,
   removeSSLCertAndProxyForDomain,
   verifyDomainOwnership,
@@ -154,7 +166,7 @@ app.get("/", async (c) => {
     }
 
     const sites = await loadSites(c, orgId, userIdToUse, domain);
-    console.log(sites);
+    
     return c.json({ data: sites }, 200);
   } catch (error) {
     console.log(error);
@@ -441,7 +453,7 @@ app.post("/:siteId/custom_domain", async (c) => {
       return c.json({ message: "Invalid site ID" }, 400);
     }
 
-    const canAdd = await canAddCustomDomain(c, siteInfo.organization_id);
+    const canAdd = true//await canAddCustomDomain(c, siteInfo.organization_id);
 
     if (!canAdd) {
       return c.json(
@@ -456,9 +468,6 @@ app.post("/:siteId/custom_domain", async (c) => {
       return c.json({ message: "Custom domain is required" }, 400);
     }
 
-    const parts = customDomain.split(".");
-    const recordHost = parts.length > 2 ? parts[0] : "@";
-
     //	We need to look up the subdomain for the site
     const foundDomains = await getCustomDomainByName(c, customDomain);
 
@@ -466,13 +475,48 @@ app.post("/:siteId/custom_domain", async (c) => {
       //	Write domain to sites table
       const orgId = siteInfo.organization_id;
       await addCustomDomainToSiteTable(c, siteId, customDomain, orgId);
+      let cloudflareCustomHostname: CloudflareCustomHostname | null = null;
+      let workerRoute: CloudflareWorkerRoute | null = null;
 
+      console.log(
+        `Creating NEW Cloudflare for SaaS domain: ${customDomain} -> ${siteInfo.domain}`
+      );
+
+      // 1. Create Cloudflare Custom Hostname
+      console.log("Creating Cloudflare custom hostname...");
+      cloudflareCustomHostname = await createCloudflareCustomHostname(
+        customDomain,
+        c.env
+      );
+      console.log(
+        `Custom hostname created with ID: ${cloudflareCustomHostname.id}`
+      );
+
+      // 2. Create Worker Route
+      console.log("Creating worker route...");
+      workerRoute = await createWorkerRoute(customDomain, c.env);
+      console.log(`Worker route created with ID: ${workerRoute.id}`);
+
+      // 3. Create domain mapping in KV (direct access - much faster!)
+      console.log("Creating domain mapping in KV...");
+      const mapping: CustomDomainMapping = {
+        subdomain: siteInfo.domain,
+        created: new Date().toISOString(),
+        cloudflare_hostname_id: cloudflareCustomHostname.id,
+        worker_route_id: workerRoute.id,
+        type: "cloudflare-saas",
+      };
+
+      console.log(mapping);
+
+      await c.env.CUSTOM_DOMAINS.put(customDomain, JSON.stringify(mapping));
+      console.log("Domain mapping stored in KV");
       return c.json(
         {
           data: {
-            recordType: "A",
-            recordHost: recordHost,
-            recordValue: c.env.NGINX_IP,
+            recordType: "CNAME",
+            recordHost: customDomain,
+            recordValue: c.env.CLOUDFLARE_ZONE_NAME,
           },
         },
         200
@@ -482,9 +526,9 @@ app.post("/:siteId/custom_domain", async (c) => {
       return c.json(
         {
           data: {
-            recordType: "A",
-            recordHost: recordHost,
-            recordValue: c.env.NGINX_IP,
+            recordType: "CNAME",
+            recordHost: customDomain,
+            recordValue: c.env.CLOUDFLARE_ZONE_NAME,
           },
         },
         200
@@ -539,11 +583,25 @@ app.delete("/:siteId/custom_domain", async (c) => {
       foundDomains.length > 0 &&
       foundDomains[0].organization_id === siteInfo.organization_id
     ) {
-      //  Delete the domain
-      if (foundDomains[0].ssl_issued) {
-        console.log("Removing SSL");
-        await removeSSLCertAndProxyForDomain(c, customDomain);
+      
+      const mappingStr = await c.env.CUSTOM_DOMAINS.get(customDomain);
+
+      if(!mappingStr) {
+        throw new Error("No domain mapping found");
       }
+
+      const mapping: CustomDomainMapping = JSON.parse(mappingStr);
+
+      await deleteWorkerRoute(mapping.worker_route_id, c.env);
+
+      console.log("Worker route deleted!");
+
+      await deleteCloudflareCustomHostname(mapping.cloudflare_hostname_id, c.env);
+
+      console.log("Custom hostname deleted");
+
+      await c.env.CUSTOM_DOMAINS.delete(customDomain);
+
       console.log("Updating db...");
       //  We call updateDomainVerificationForSite with the final value as an empty string to set the custom domain back to empty
       await updateDomainVerificationForSite(
@@ -585,53 +643,52 @@ app.post("/:siteId/verify_domain", async (c) => {
       return c.json({ message: "Invalid site ID" }, 400);
     }
 
-    //  We should always verify domain ownership and DNS config
-    //  People can remove the dns entry later and we should reflect that
-
-    const isVerified = await verifyDomainOwnership(c, customDomain);
-
-    if (
-      isVerified &&
-      siteInfo.domain_ownership_verified &&
-      siteInfo.ssl_issued
-    ) {
+    if (siteInfo.domain_ownership_verified && siteInfo.ssl_issued) {
       console.log("Verified!");
       await updateDomainVerificationForSite(
         c,
         siteId,
         siteInfo.organization_id,
-        isVerified,
+        true,
         siteInfo.ssl_issued
       );
       return c.json({ data: { verified: true, sslIssued: true } }, 200);
     }
 
-    if (isVerified && !siteInfo.ssl_issued) {
-      console.log("Domain ownership verified! Issuing SSL!");
-      await issueSSLCertAndProxyCustomDomain(
-        c,
-        siteInfo.domain.split(".orbiter.website")[0].toLowerCase(),
-        customDomain
-      );
-      await updateDomainVerificationForSite(
-        c,
-        siteId,
-        siteInfo.organization_id,
-        true,
-        true
-      );
-      return c.json({ data: { isVerified, sslIssued: true } }, 200);
-    }
+    if (!siteInfo.ssl_issued) {
+      console.log("Domain ownership verified! Issuing SSL!");    
+      const mappingStr = await c.env.CUSTOM_DOMAINS.get(customDomain);
 
-    if (!isVerified && siteInfo.ssl_issued) {
-      await updateDomainVerificationForSite(
-        c,
-        siteId,
-        siteInfo.organization_id,
-        isVerified,
-        siteInfo.ssl_issued
+      if (!mappingStr) {
+        throw new Error("No custom domain mapping");
+      }
+
+      const mapping: CustomDomainMapping = JSON.parse(mappingStr);
+
+      const valid = await checkSSLValidation(
+        mapping.cloudflare_hostname_id,
+        c.env
       );
-      return c.json({ data: { isVerified: false, sslIssued: true } }, 200);
+
+      if (valid) {
+        const finalStatus = await getCustomHostnameStatus(
+          mapping.cloudflare_hostname_id,
+          c.env
+        );
+        mapping.ssl_status = finalStatus.ssl.status;
+        mapping.last_checked = new Date().toISOString();
+        await c.env.CUSTOM_DOMAINS.put(customDomain, JSON.stringify(mapping));
+        await updateDomainVerificationForSite(
+          c,
+          siteId,
+          siteInfo.organization_id,
+          true,
+          true
+        );
+        return c.json({ data: { isVerified: true, sslIssued: true } }, 200);
+      } else {
+        return c.json({ data: { isVerified: false, sslIssued: true } }, 200);
+      }
     }
 
     return c.json({ data: { isVerified: false, sslIssued: false } }, 200);

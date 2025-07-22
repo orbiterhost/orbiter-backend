@@ -51,6 +51,11 @@ export type Bindings = {
   WORKERS_SUBDOMAIN: string;
   CLOUDFLARE_WORKERS_TOKEN: string;
   DISPATCH_NAMESPACE_NAME: string;
+  CLOUDFLARE_ZONE_NAME: string;
+  CUSTOM_DOMAINS: KVNamespace;
+	LEGACY_DOMAINS: KVNamespace;
+  WORKER_NAME: string;
+  CLOUDFLARE_PROXY_API_TOKEN: string;
 };
 
 export type Organization = {
@@ -244,4 +249,66 @@ export interface GraphQLResponse {
     }>;
     path?: string[];
   }>;
+}
+
+export interface CloudflareCustomHostname {
+	id: string;
+	hostname: string;
+	ssl: {
+		status: string;
+		method: string;
+		type: string;
+		validation_errors?: any[];
+	};
+	status: string;
+	ownership_verification?: {
+		type: string;
+		name: string;
+		value: string;
+	};
+	verification_errors?: any[];
+}
+
+export interface CloudflareWorkerRoute {
+	id: string;
+	pattern: string;
+	script: string;
+}
+
+export interface CustomDomainMapping {
+	subdomain: string;
+	created: string;
+	cloudflare_hostname_id: string;
+	worker_route_id: string;
+	type: 'cloudflare-saas';
+	ssl_status?: string;
+	last_checked?: string;
+}
+
+export interface LegacyDomainMapping {
+	subdomain: string;
+	created: string;
+	type: 'digital-ocean';
+}
+
+// API response types
+export interface CloudflareApiResponse<T> {
+	success: boolean;
+	result: T;
+	errors?: Array<{ message: string }>;
+}
+
+export interface CreateDomainRequest {
+	domain: string;
+	subdomain: string;
+}
+
+export interface DeleteDomainRequest {
+	domain: string;
+	cloudflare_custom_hostname_id?: string;
+	worker_route_id?: string;
+}
+
+export interface DeleteLegacyDomainRequest {
+	domain: string;
 }

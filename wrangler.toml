@@ -27,6 +27,8 @@ WORKERS_NAMESPACE_ID = "ccdc1280-79eb-4552-9e7d-bcd770b4b9f9"
 WORKERS_SUBDOMAIN = "staging-functions.workers.dev"
 CLOUDFLARE_ACCOUNT_ID= "255e21419f5795400879e86a02167322"
 DISPATCH_NAMESPACE_NAME = "staging-functions"
+CLOUDFLARE_ZONE_NAME = "orbiter.website"
+WORKER_NAME = "orbiter-websites"
 
 [[kv_namespaces]]
 binding = "ORBITER_SITES"
@@ -52,6 +54,18 @@ id = "5a55237f2b0646599e637edb8f4154c7"
 binding = "FUNCTIONS"
 id = "fdf47ff1bd0442b99bd79d849f7d1824"
 
+[[kv_namespaces]]
+binding = "DOMAIN_MAPPINGS"
+id = "26001f1e8a304085bd9127991672f1df"
+
+[[kv_namespaces]]
+binding = "LEGACY_DOMAINS"
+id = "7640af0ecc804a3e8027bcb90d50fb11"
+
+[[kv_namespaces]]
+binding = "CUSTOM_DOMAINS"
+id = "300c6ae6ef134f1b85b03cb2c2dd8dd1"
+
 [[queues.producers]]
 binding = "CONTRACT_QUEUE"
 queue = "contract-queue"
@@ -60,8 +74,8 @@ queue = "contract-queue"
 # queue = "contract-queue"
 
 # [[r2_buckets]]
-# binding = "MY_BUCKET"
-# bucket_name = "my-bucket"
+# binding = "certificates"
+# bucket_name = "certificates"
 
 # [[d1_databases]]
 # binding = "DB"
