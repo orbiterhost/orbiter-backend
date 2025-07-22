@@ -499,8 +499,9 @@ app.post("/:siteId/custom_domain", async (c) => {
 
       // 3. Create domain mapping in KV (direct access - much faster!)
       console.log("Creating domain mapping in KV...");
+      
       const mapping: CustomDomainMapping = {
-        subdomain: siteInfo.domain,
+        subdomain: siteInfo.domain.split(".orbiter.website")[0],
         created: new Date().toISOString(),
         cloudflare_hostname_id: cloudflareCustomHostname.id,
         worker_route_id: workerRoute.id,
