@@ -453,7 +453,7 @@ app.post("/:siteId/custom_domain", async (c) => {
       return c.json({ message: "Invalid site ID" }, 400);
     }
 
-    const canAdd = true//await canAddCustomDomain(c, siteInfo.organization_id);
+    const canAdd = await canAddCustomDomain(c, siteInfo.organization_id);
 
     if (!canAdd) {
       return c.json(
