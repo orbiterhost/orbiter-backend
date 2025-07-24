@@ -499,7 +499,7 @@ app.post("/:siteId/custom_domain", async (c) => {
 
       // 3. Create domain mapping in KV (direct access - much faster!)
       console.log("Creating domain mapping in KV...");
-      
+
       const mapping: CustomDomainMapping = {
         subdomain: siteInfo.domain.split(".orbiter.website")[0],
         created: new Date().toISOString(),
@@ -678,6 +678,7 @@ app.post("/:siteId/verify_domain", async (c) => {
         );
         mapping.ssl_status = finalStatus.ssl.status;
         mapping.last_checked = new Date().toISOString();
+        
         await c.env.CUSTOM_DOMAINS.put(customDomain, JSON.stringify(mapping));
         await updateDomainVerificationForSite(
           c,

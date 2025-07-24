@@ -243,6 +243,7 @@ export async function getCustomHostnameStatus(customHostnameId: string, env: Bin
 	});
 	
 	const data = await response.json() as CloudflareApiResponse<CloudflareCustomHostname>;
+  console.log(data);
 	return data.result;
 }
 
