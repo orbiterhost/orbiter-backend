@@ -55,6 +55,7 @@ import {
 import { getUserById } from "../utils/db/users";
 import { parseRedirectsFile } from "../utils/redirects";
 import { getSiteCountForOrganization } from "../utils/db/organizations";
+import { getCidFromBadContentList } from "../utils/db/admin";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -126,8 +127,8 @@ app.get("/:identifier/versions", async (c) => {
           all === "true"
             ? null
             : versions.length === 10
-            ? parseInt(offset || "0", 10) + 10
-            : null,
+              ? parseInt(offset || "0", 10) + 10
+              : null,
       },
       200
     );
@@ -166,7 +167,7 @@ app.get("/", async (c) => {
     }
 
     const sites = await loadSites(c, orgId, userIdToUse, domain);
-    
+
     return c.json({ data: sites }, 200);
   } catch (error) {
     console.log(error);
@@ -186,6 +187,12 @@ app.post("/", async (c) => {
     if (!isAuthenticated || (!user?.id && !organizationData?.id)) {
       console.log("Unauthorized - no user found or unauthenticated");
       return c.json({ message: "Unauthorized" }, 401);
+    }
+
+    const badSite = await getCidFromBadContentList(c, cid)
+    if (badSite) {
+      console.log("Unauthorized Upload");
+      return c.json({ message: "Unauthorized content" }, 405);
     }
 
     const orgId = user ? user.user_metadata.orgId : organizationData.id;
@@ -584,10 +591,10 @@ app.delete("/:siteId/custom_domain", async (c) => {
       foundDomains.length > 0 &&
       foundDomains[0].organization_id === siteInfo.organization_id
     ) {
-      
+
       const mappingStr = await c.env.CUSTOM_DOMAINS.get(customDomain);
 
-      if(!mappingStr) {
+      if (!mappingStr) {
         throw new Error("No domain mapping found");
       }
 
@@ -657,7 +664,7 @@ app.post("/:siteId/verify_domain", async (c) => {
     }
 
     if (!siteInfo.ssl_issued) {
-      console.log("Domain ownership verified! Issuing SSL!");    
+      console.log("Domain ownership verified! Issuing SSL!");
       const mappingStr = await c.env.CUSTOM_DOMAINS.get(customDomain);
 
       if (!mappingStr) {
@@ -678,7 +685,7 @@ app.post("/:siteId/verify_domain", async (c) => {
         );
         mapping.ssl_status = finalStatus.ssl.status;
         mapping.last_checked = new Date().toISOString();
-        
+
         await c.env.CUSTOM_DOMAINS.put(customDomain, JSON.stringify(mapping));
         await updateDomainVerificationForSite(
           c,

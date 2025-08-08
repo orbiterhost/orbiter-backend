@@ -277,10 +277,29 @@ export const addCidToBadContentList = async (c: Context, domain: string) => {
     const { error: badContentError } = await supabase
       .from("bad_content")
       .insert([{ cid: cid, domain: domain, blocked: true }]);
-    
-    if(badContentError) {
+
+    if (badContentError) {
       console.log("Supabase bad content insert error: ", badContentError);
       throw badContentError;
     }
   }
+};
+
+export const getCidFromBadContentList = async (c: Context, cid: string): Promise<boolean> => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  const { data, error } = await supabase
+    .from("bad_content")
+    .select("*")
+    .eq("cid", cid);
+
+  if (error) {
+    console.log("Supabase error: ", error);
+    throw error;
+  }
+
+  return data && data.length > 0;
 };
