@@ -165,11 +165,11 @@ app.get("/onboarding_data", async (c) => {
     thirtyDaysAgo.setDate(today.getDate() - 30);
     let start = thirtyDaysAgo.toISOString();
     let end = new Date().toISOString();
-    if(startDate) {
+    if (startDate) {
       start = new Date(startDate).toISOString();
     }
 
-    if(endDate) {
+    if (endDate) {
       end = new Date(endDate).toISOString();
     }
 
@@ -200,11 +200,11 @@ app.get("/deployment_source", async (c) => {
     thirtyDaysAgo.setDate(today.getDate() - 30);
     let start = thirtyDaysAgo.toISOString();
     let end = new Date().toISOString();
-    if(startDate) {
+    if (startDate) {
       start = new Date(startDate).toISOString();
     }
 
-    if(endDate) {
+    if (endDate) {
       end = new Date(endDate).toISOString();
     }
 
@@ -235,6 +235,8 @@ app.post("/block_site", async (c) => {
     await purgeCache(c, domain);
 
     await addCidToBadContentList(c, domain.split("https://")[1]);
+
+    await c.env.ORBITER_SITES.put(subdomain, "")
 
     return c.json({ message: "Success!" }, 200);
   } catch (error) {
@@ -277,7 +279,7 @@ app.put("/remove_ban", async (c) => {
   }
 });
 
-app.get("/user_ban/:email", async(c) => {
+app.get("/user_ban/:email", async (c) => {
   try {
     const { isAuthenticated, user } = await adminAccess(c);
     if (!isAuthenticated || !user?.id) {
@@ -334,8 +336,8 @@ app.post("/backfill-site-contracts", async (c) => {
     }
 
     const sites = await getAllSites(c);
-    if(sites) {
-      for(const site of sites) {
+    if (sites) {
+      for (const site of sites) {
         const siteKey = site.domain.split('.')[0];
         await c.env.SITE_CONTRACT.put(siteKey.toLowerCase(), site.site_contract);
       }
@@ -380,7 +382,7 @@ app.post("/backfill-site-contract-cid/:id", async (c) => {
       return c.json({ message: "Unauthorized" }, 401);
     }
 
-    if (!siteId){
+    if (!siteId) {
       return c.json({ message: "Missing site ID" }, 400);
     }
 
