@@ -95,7 +95,9 @@ app.get("/:identifier/versions", async (c) => {
           ? await getSiteById(c, lookUpType.value)
           : await getSiteByDomain(c, lookUpType.value);
     } else if (organizationData) {
-      siteInfo = await getSiteById(c, identifier);
+      siteInfo = lookUpType.field === "site_id"
+        ? await getSiteById(c, lookUpType.value)
+        : await getSiteByDomain(c, lookUpType.value);
       if (siteInfo.organization_id !== organizationData?.id) {
         return c.json({ message: "Unauthorized" }, 401);
       }
