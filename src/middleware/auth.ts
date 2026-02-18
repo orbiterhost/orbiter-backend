@@ -21,14 +21,31 @@ export const getUserSession = async (c: Context) => {
       const keyData = await getKeyByHash(c, hashedKey);
       if (!keyData.id) {
         return {
-          isAuthenticated: false
+          isAuthenticated: false,
+        };
+      }
+
+      const ownerId = keyData.organizations?.owner_id;
+      if (ownerId) {
+        const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+        const {
+          data: { user: ownerUser },
+        } = await supabase.auth.admin.getUserById(ownerId);
+        if (ownerUser?.app_metadata?.blocked === "true") {
+          return {
+            isAuthenticated: false,
+          };
         }
       }
 
       return {
         isAuthenticated: true,
-        organizationData: { id: keyData.organization_id, orgOwner: keyData.organizations?.owner_id, scope: keyData.scope }
-      }
+        organizationData: {
+          id: keyData.organization_id,
+          orgOwner: keyData.organizations?.owner_id,
+          scope: keyData.scope,
+        },
+      };
     }
 
     const token = c.req.header("X-Orbiter-Token");
@@ -41,14 +58,14 @@ export const getUserSession = async (c: Context) => {
 
     const supabase = createClient(
       "https://myyfwiyflnerjrdaoyxs.supabase.co",
-      c.env.SUPABASE_SERVICE_ROLE_KEY
+      c.env.SUPABASE_SERVICE_ROLE_KEY,
     );
 
     const {
       data: { user },
     } = await supabase.auth.getUser(token);
 
-    if(user?.app_metadata.banned === "true") {
+    if (user?.app_metadata.blocked === "true") {
       return {
         isAuthenticated: false,
       };
@@ -88,7 +105,7 @@ export const adminAccess = async (c: Context) => {
       //  Need to verify that it is Steve or Justin or launchOrbiter
       const supabase = createClient(
         "https://myyfwiyflnerjrdaoyxs.supabase.co",
-        c.env.SUPABASE_SERVICE_ROLE_KEY
+        c.env.SUPABASE_SERVICE_ROLE_KEY,
       );
 
       const {
@@ -98,8 +115,8 @@ export const adminAccess = async (c: Context) => {
       if (user && user.user_metadata.blocked === "true") {
         console.log("User is blocked: ", user);
         return {
-          isAuthenticated: false
-        }
+          isAuthenticated: false,
+        };
       }
 
       if (user && user.id && ALLOWED_USERS.includes(user.id)) {
@@ -126,8 +143,8 @@ export const adminAccess = async (c: Context) => {
 
 export const verifySupabaseWebhookSecret = async (c: Context) => {
   try {
-    const secret = c.req.header("x-supabase-secret")
-    console.log("Supabase secret!")
+    const secret = c.req.header("x-supabase-secret");
+    console.log("Supabase secret!");
     console.log(secret);
     //  @TODO - figure out why Supabase is not sending the custom header I set
 
@@ -140,4 +157,4 @@ export const verifySupabaseWebhookSecret = async (c: Context) => {
     console.log(error);
     throw error;
   }
-}
+};
