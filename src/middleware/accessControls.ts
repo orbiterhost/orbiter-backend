@@ -7,7 +7,7 @@ import {
   getMemberships,
   getOrganizationById,
   getOrgMembership,
-  getSiteCountForOrganization,
+  // getSiteCountForOrganization, // re-enable for free-plan site-limit logic (see canCreateSite)
 } from "../utils/db/organizations";
 import { getSiteById } from "../utils/db/sites";
 
@@ -100,17 +100,28 @@ export const canCreateSite = async (
           : "free";
     }
 
+    //  ── FREE SITE CREATION DISABLED ────────────────────────────────────
+    //  Only paid plans may create new sites. Free orgs keep their existing
+    //  sites (deployed via the PUT update route) but cannot add more.
+    //  TO RE-ENABLE free site creation: comment out the block below,
+    //  uncomment the original site-limit logic that follows, and restore the
+    //  `getSiteCountForOrganization` import at the top of this file.
     if (plan !== "launch" && plan !== "orbit") {
-      //  Check if they have reached their site limit
-      const siteCount: number | null = await getSiteCountForOrganization(
-        c,
-        orgId
-      );
-
-      if (siteCount && siteCount >= SITE_LIMITS[plan]) {
-        return false;
-      }
+      return false;
     }
+
+    //  ── ORIGINAL FREE-PLAN SITE-LIMIT LOGIC (uncomment to re-enable) ────
+    // if (plan !== "launch" && plan !== "orbit") {
+    //   //  Check if they have reached their site limit
+    //   const siteCount: number | null = await getSiteCountForOrganization(
+    //     c,
+    //     orgId
+    //   );
+    //
+    //   if (siteCount && siteCount >= SITE_LIMITS[plan]) {
+    //     return false;
+    //   }
+    // }
 
     return true;
   } catch (error) {
