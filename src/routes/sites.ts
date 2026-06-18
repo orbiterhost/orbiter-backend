@@ -13,8 +13,8 @@ import {
   canAddCustomDomain,
   canCreateSite,
   canModifySite,
-  SITE_LIMITS,
-  PlanType,
+  // SITE_LIMITS,  // re-enable for free-plan site-limit logic (see POST /)
+  // PlanType,     // re-enable for free-plan site-limit logic (see POST /)
 } from "../middleware/accessControls";
 import {
   checkSubdomainDNSRecord,
@@ -54,7 +54,8 @@ import {
 } from "../utils/db/sites";
 import { getUserById } from "../utils/db/users";
 import { parseRedirectsFile } from "../utils/redirects";
-import { getSiteCountForOrganization } from "../utils/db/organizations";
+// re-enable for free-plan site-limit logic (see POST /)
+// import { getSiteCountForOrganization } from "../utils/db/organizations";
 import { getCidFromBadContentList } from "../utils/db/admin";
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -216,20 +217,36 @@ app.post("/", async (c) => {
         console.log("Error with redirects: ", error);
       }
     } else {
-      const siteCount: number | null = await getSiteCountForOrganization(
-        c,
-        orgId
+      //  ── FREE SITE CREATION DISABLED ────────────────────────────────────
+      //  Free plan cannot create new sites; a paid plan is required.
+      //  Existing sites continue to deploy via the PUT /:siteId update route.
+      //  TO RE-ENABLE free site creation: comment out the block below,
+      //  uncomment the original site-limit logic that follows, and restore
+      //  the `SITE_LIMITS` / `PlanType` / `getSiteCountForOrganization`
+      //  imports at the top of this file.
+      return c.json(
+        {
+          message:
+            "Creating a new site requires a paid plan. Upgrade to add a site.",
+        },
+        402
       );
 
-      if (siteCount && siteCount >= SITE_LIMITS[plan as PlanType]) {
-        return c.json(
-          {
-            message:
-              "You've hit your site limit and will need to upgrade to add more",
-          },
-          401
-        );
-      }
+      //  ── ORIGINAL FREE-PLAN SITE-LIMIT LOGIC (uncomment to re-enable) ────
+      // const siteCount: number | null = await getSiteCountForOrganization(
+      //   c,
+      //   orgId
+      // );
+      //
+      // if (siteCount && siteCount >= SITE_LIMITS[plan as PlanType]) {
+      //   return c.json(
+      //     {
+      //       message:
+      //         "You've hit your site limit and will need to upgrade to add more",
+      //     },
+      //     401
+      //   );
+      // }
     }
 
     if (organizationData && organizationData.id !== orgId) {
