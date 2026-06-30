@@ -181,6 +181,16 @@ app.get("/", async (c) => {
 //	Create or update an existing site based on userId
 app.post("/", async (c) => {
   try {
+    //  ── SITE CREATION DISABLED (SERVICE SHUTDOWN) ─────────────────────────
+    //  Orbiter is shutting down — no new sites may be created (all plans).
+    //  Existing sites still deploy via PUT /:siteId.
+    //  TO RE-ENABLE: comment out this block.
+    return c.json(
+      { message: "Orbiter is shutting down. New site creation is disabled." },
+      403
+    );
+    //  ──────────────────────────────────────────────────────────────────────
+
     const body = await c.req.json();
     const source = c.req.header("Source") || "";
     //	The CID comes from the frontend since the FE will be handling the site upload
