@@ -7,7 +7,7 @@ import {
   CustomDomainMapping,
   SiteVersionLookupType,
 } from "../utils/types";
-import { getUserSession } from "../middleware/auth";
+import { getUserSession, adminAccess } from "../middleware/auth";
 import {
   canAccessVersions,
   canAddCustomDomain,
@@ -181,6 +181,16 @@ app.get("/", async (c) => {
 //	Create or update an existing site based on userId
 app.post("/", async (c) => {
   try {
+    //  ── SITE CREATION DISABLED (SERVICE SHUTDOWN) ─────────────────────────
+    //  Orbiter is shutting down — no new sites may be created (all plans).
+    //  Existing sites still deploy via PUT /:siteId.
+    //  TO RE-ENABLE: comment out this block.
+    return c.json(
+      { message: "Orbiter is shutting down. New site creation is disabled." },
+      403
+    );
+    //  ──────────────────────────────────────────────────────────────────────
+
     const body = await c.req.json();
     const source = c.req.header("Source") || "";
     //	The CID comes from the frontend since the FE will be handling the site upload
@@ -321,6 +331,20 @@ app.post("/", async (c) => {
 app.put("/:siteId", async (c) => {
   const source = c.req.header("Source") || "";
   try {
+    //  ── SITE UPDATES RESTRICTED TO ADMINS (SERVICE SHUTDOWN) ──────────────
+    //  Orbiter is shutting down — only Orbiter admins may update sites.
+    //  adminAccess checks X-Orbiter-Token against ALLOWED_USERS (or the
+    //  X-Orbiter-Admin server token).
+    //  TO RE-ENABLE updates for all users: comment out this block.
+    const { isAuthenticated: isAdmin } = await adminAccess(c);
+    if (!isAdmin) {
+      return c.json(
+        { message: "Orbiter is shutting down. Site updates are disabled." },
+        403
+      );
+    }
+    //  ──────────────────────────────────────────────────────────────────────
+
     const siteId = c.req.param("siteId");
     //	The CID comes from the frontend since the FE will be handling the site upload
     const { cid } = await c.req.json();

@@ -10,6 +10,16 @@ app.use("/*", cors());
 
 app.post("/", async (c: Context) => {
   try {
+    //  ── SIGN UPS DISABLED (SERVICE SHUTDOWN) ──────────────────────────────
+    //  Orbiter is shutting down — no new accounts/organizations.
+    //  Blocks onboarding so a new Supabase user cannot reach a usable account.
+    //  TO RE-ENABLE: comment out this block.
+    return c.json(
+      { message: "Orbiter is shutting down. New sign ups are disabled." },
+      403
+    );
+    //  ──────────────────────────────────────────────────────────────────────
+
     const { orgName } = await c.req.json();
 
     const { isAuthenticated, user } = await getUserSession(c);
